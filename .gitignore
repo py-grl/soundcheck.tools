@@ -1,0 +1,29 @@
+# Credentials & secrets
+.env
+*.env
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+
+# PyCharm
+.idea/
+
+# User data
+users.json
+
+# OS
+.DS_Store
+Thumbs.db

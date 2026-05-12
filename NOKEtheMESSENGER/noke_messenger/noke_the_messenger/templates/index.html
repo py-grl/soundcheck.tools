@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NOKE Messenger</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0e0f;
+      --surface: #161618;
+      --surface2: #1e1e21;
+      --border: #fff200;
+      --accent: #fff200;
+      --accent2: #000200;
+      --text: #f0f0f0;
+      --muted: #6b6b75;
+      --danger: #ff4d4d;
+      --warning: #fff200;
+      --radius: 10px;
+      --font-mono: 'DM Mono', monospace;
+      --font-head: 'Syne', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      font-family: var(--font-head);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--accent);
+    }
+
+    .logo span { color: var(--text); }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 0;
+      flex: 1;
+      height: calc(100vh - 65px);
+    }
+
+    /* LEFT PANEL */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-section {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .group-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 6px;
+      transition: all 0.15s;
+      text-align: left;
+    }
+
+    .group-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .group-btn.active { background: var(--accent2); border-color: var(--accent); color: var(--accent); }
+
+    .group-btn .count {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+
+    .group-btn.active .count { color: var(--accent); }
+
+    .camp-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b6b75' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+
+    .camp-select:focus { outline: none; border-color: var(--accent); }
+
+    /* RECIPIENT LIST */
+    .recipient-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .recipient-list::-webkit-scrollbar { width: 4px; }
+    .recipient-list::-webkit-scrollbar-track { background: transparent; }
+    .recipient-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .recipient-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      transition: background 0.1s;
+      border: 1px solid transparent;
+    }
+
+    .recipient-item:hover { background: var(--surface2); }
+    .recipient-item.selected { background: var(--surface2); border-color: var(--accent2); }
+
+    .recipient-item input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 15px; height: 15px;
+      cursor: pointer;
+    }
+
+    .recipient-info { flex: 1; min-width: 0; }
+
+    .recipient-name {
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .recipient-meta {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge {
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .badge-primary { background: #2a2a1a; color: var(--accent); }
+    .badge-secondary { background: #2a2a1a; color: var(--warning); }
+
+    /* RIGHT PANEL */
+    .compose {
+      display: flex;
+      flex-direction: column;
+      padding: 28px 32px;
+      gap: 20px;
+    }
+
+    .compose-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .compose-title {
+      font-family: var(--font-head);
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .selected-summary {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .selected-summary span { color: var(--accent); }
+
+    .channel-toggle {
+      display: flex;
+      gap: 8px;
+    }
+
+    .channel-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .channel-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent2);
+    }
+
+    .message-box {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message-box:focus-within { border-color: var(--accent); }
+
+    textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.7;
+      resize: none;
+      min-height: 160px;
+    }
+
+    textarea::placeholder { color: var(--muted); }
+
+    .message-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .char-count { font-size: 11px; color: var(--muted); }
+    .char-count.warn { color: var(--warning); }
+
+    .opt-out-note {
+      font-size: 11px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .send-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .send-btn {
+      padding: 14px 32px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-head);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.5px;
+    }
+
+    .send-btn:hover { background: #6b6b75; transform: translateY(-1px); }
+    .send-btn:active { transform: translateY(0); }
+    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .select-all-btn {
+      padding: 8px 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .select-all-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      font-size: 13px;
+      max-width: 320px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 100;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-color: var(--accent); }
+    .toast.error { border-color: var(--danger); }
+
+    .loading { color: var(--muted); font-size: 12px; padding: 20px; text-align: center; }
+
+    .empty-state {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 40px 20px;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="status-dot"></div>
+  <div class="logo">NOKE <span>Messenger</span></div>
+</header>
+
+<div class="main">
+  <!-- LEFT: Contact Selector -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="section-label">Send To Group</div>
+      <button class="group-btn active" data-group="all" onclick="selectGroup(this)">
+        🏢 All Contacts <span class="count" id="count-all">—</span>
+      </button>
+      <button class="group-btn" data-group="primary" onclick="selectGroup(this)">
+        ⭐ Primary Contacts <span class="count" id="count-primary">—</span>
+      </button>
+      <button class="group-btn" data-group="secondary" onclick="selectGroup(this)">
+        👥 Secondary Contacts <span class="count" id="count-secondary">—</span>
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Filter by Artist Camp</div>
+      <select class="camp-select" id="campSelect" onchange="filterByCamp(this.value)">
+        <option value="">All Camps</option>
+        {% for camp in camps %}
+        <option value="{{ camp }}">{{ camp }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="recipient-list" id="recipientList">
+      <div class="loading">Loading contacts...</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Compose -->
+  <div class="compose">
+    <div class="compose-header">
+      <div>
+        <div class="compose-title">Compose Message</div>
+        <div class="selected-summary">
+          <span id="selectedCount">0</span> recipient(s) selected
+        </div>
+      </div>
+      <div class="channel-toggle">
+        <button class="channel-btn active" id="btn-sms" onclick="toggleChannel('sms')">📱 SMS</button>
+        <button class="channel-btn active" id="btn-email" onclick="toggleChannel('email')">✉️ Email</button>
+      </div>
+    </div>
+
+    <div class="message-box">
+      <textarea
+        id="messageText"
+        placeholder="Type your message here...&#10;&#10;A STOP opt-out footer will be automatically added for compliance."
+        oninput="updateCharCount()"
+        maxlength="1600"
+      ></textarea>
+      <div class="message-footer">
+        <div class="char-count" id="charCount">0 / 160 chars (1 SMS segment)</div>
+        <div class="opt-out-note">⚖️ "Reply STOP to unsubscribe" auto-appended</div>
+      </div>
+    </div>
+
+    <div class="send-bar">
+      <button class="send-btn" id="sendBtn" onclick="sendMessages()" disabled>
+        Send Message
+      </button>
+      <button class="select-all-btn" onclick="toggleSelectAll()">Select All</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let allContacts = [];
+  let selectedContacts = new Set();
+  let activeGroup = 'all';
+  let activeCamp = '';
+  let channels = new Set(['sms', 'email']);
+
+  async function loadContacts() {
+    const params = new URLSearchParams({ group: activeGroup });
+    if (activeCamp) params.set('camp', activeCamp);
+
+    const res = await fetch(`/api/contacts?${params}`);
+    allContacts = await res.json();
+    selectedContacts.clear();
+    renderContacts();
+    updateCounts();
+  }
+
+  async function updateCounts() {
+    const groups = ['all', 'primary', 'secondary'];
+    for (const g of groups) {
+      const params = new URLSearchParams({ group: g });
+      if (activeCamp) params.set('camp', activeCamp);
+      const res = await fetch(`/api/contacts?${params}`);
+      const data = await res.json();
+      document.getElementById(`count-${g}`).textContent = data.length;
+    }
+  }
+
+  function renderContacts() {
+    const list = document.getElementById('recipientList');
+    if (!allContacts.length) {
+      list.innerHTML = '<div class="empty-state">No contacts found<br>for this selection.</div>';
+      updateSendBtn();
+      return;
+    }
+
+    list.innerHTML = allContacts.map(c => {
+      const checked = selectedContacts.has(c.phone || c.email) ? 'checked' : '';
+      const selected = checked ? 'selected' : '';
+      const id = c.phone || c.name;
+      const badge = c.contact_type === 'primary'
+        ? '<span class="badge badge-primary">Primary</span>'
+        : '<span class="badge badge-secondary">Secondary</span>';
+      return `
+        <div class="recipient-item ${selected}" onclick="toggleContact('${id}', this)">
+          <input type="checkbox" ${checked} onclick="event.stopPropagation(); toggleContact('${id}', this.closest('.recipient-item'))">
+          <div class="recipient-info">
+            <div class="recipient-name">${c.name || '—'}</div>
+            <div class="recipient-meta">${c.unit_name || ''} · ${c.phone || c.email || 'no contact'}</div>
+          </div>
+          ${badge}
+        </div>
+      `;
+    }).join('');
+
+    updateSendBtn();
+  }
+
+  function toggleContact(id, el) {
+    const cb = el.querySelector('input[type="checkbox"]');
+    if (selectedContacts.has(id)) {
+      selectedContacts.delete(id);
+      el.classList.remove('selected');
+      if (cb) cb.checked = false;
+    } else {
+      selectedContacts.add(id);
+      el.classList.add('selected');
+      if (cb) cb.checked = true;
+    }
+    updateSendBtn();
+  }
+
+  function toggleSelectAll() {
+    if (selectedContacts.size === allContacts.length) {
+      selectedContacts.clear();
+    } else {
+      allContacts.forEach(c => selectedContacts.add(c.phone || c.email));
+    }
+    renderContacts();
+  }
+
+  function selectGroup(btn) {
+    document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeGroup = btn.dataset.group;
+    loadContacts();
+  }
+
+  function filterByCamp(camp) {
+    activeCamp = camp;
+    loadContacts();
+  }
+
+  function toggleChannel(ch) {
+    const btn = document.getElementById(`btn-${ch}`);
+    if (channels.has(ch)) {
+      channels.delete(ch);
+      btn.classList.remove('active');
+    } else {
+      channels.add(ch);
+      btn.classList.add('active');
+    }
+  }
+
+  function updateCharCount() {
+    const text = document.getElementById('messageText').value;
+    const len = text.length;
+    const segments = Math.ceil((len + 30) / 160) || 1; // +30 for STOP footer
+    const el = document.getElementById('charCount');
+    el.textContent = `${len} chars · ${segments} SMS segment${segments > 1 ? 's' : ''}`;
+    el.className = 'char-count' + (len > 130 ? ' warn' : '');
+    updateSendBtn();
+  }
+
+  function updateSendBtn() {
+    const hasRecipients = selectedContacts.size > 0;
+    const hasMessage = document.getElementById('messageText').value.trim().length > 0;
+    const hasChannel = channels.size > 0;
+    document.getElementById('sendBtn').disabled = !(hasRecipients && hasMessage && hasChannel);
+    document.getElementById('selectedCount').textContent = selectedContacts.size;
+  }
+
+  async function sendMessages() {
+    const message = document.getElementById('messageText').value.trim();
+    const selectedIds = Array.from(selectedContacts);
+    const recipients = allContacts.filter(c => selectedIds.includes(c.phone || c.email));
+
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    try {
+      const res = await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          recipients,
+          channels: Array.from(channels)
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast(`✅ Sent! ${data.sms_sent} SMS · ${data.email_sent} emails delivered`, 'success');
+        document.getElementById('messageText').value = '';
+        updateCharCount();
+      } else {
+        showToast(`❌ Error: ${data.error}`, 'error');
+      }
+    } catch (e) {
+      showToast('❌ Network error. Check your connection.', 'error');
+    }
+
+    btn.textContent = 'Send Message';
+    updateSendBtn();
+  }
+
+  function showToast(msg, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 4000);
+  }
+
+  // Init
+  loadContacts();
+</script>
+</body>
+</html>

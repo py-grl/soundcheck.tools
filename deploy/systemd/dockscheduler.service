@@ -1,0 +1,16 @@
+[Unit]
+Description=DockScheduler (Flask/gunicorn)
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/opt/soundcheck.tools/DockScheduler
+ExecStart=/opt/soundcheck.tools/DockScheduler/.venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:5001 \
+    app:app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

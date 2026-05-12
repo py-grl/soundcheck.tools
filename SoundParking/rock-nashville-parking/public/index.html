@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rock Nashville — Parking</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --y:#fff200;--yd:#c8bc00;--blk:#111;
+  --bg:#ffffff;--bg2:#f5f5f5;--bg3:#eeeeee;
+  --txt:#111111;--txt2:#555555;--txt3:#888888;
+  --border:#e0e0e0;--border2:#cccccc;
+  --radius:8px;--radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1a1a1a;--bg2:#222222;--bg3:#2a2a2a;
+  --txt:#f0f0f0;--txt2:#aaaaaa;--txt3:#666666;
+  --border:#333333;--border2:#444444;
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+
+/* ── Header ── */
+.hdr{background:#111;padding:16px 22px;display:flex;align-items:center;justify-content:space-between}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.hdr-icon{width:34px;height:34px;background:#fff200;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hdr-title{font-size:17px;font-weight:600;color:#fff200;letter-spacing:.04em}
+.hdr-sub{font-size:10px;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.hdr-date{font-size:11px;color:#555}
+
+/* ── Tabs ── */
+.tabs{display:flex;background:#161616;border-bottom:2px solid #fff200}
+.tab{padding:10px 22px;font-size:12px;font-weight:500;color:#666;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;border:none;background:none;transition:color .15s}
+.tab:hover{color:#ccc}
+.tab.active{color:#fff200;border-bottom:2px solid #fff200;margin-bottom:-2px}
+
+/* ── Body ── */
+.body{padding:20px 22px;max-width:1100px;margin:0 auto}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.sc{background:var(--bg2);border-radius:var(--radius);padding:12px 14px;text-align:center;border:.5px solid var(--border)}
+.sc.hl{background:#fff200;border-color:#c8bc00}
+.sc-lbl{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.sc.hl .sc-lbl{color:#6b5f00}
+.sc-num{font-size:26px;font-weight:600;color:var(--txt)}
+.sc.hl .sc-num{color:#111}
+
+/* ── Progress bar ── */
+.pbar-wrap{background:var(--bg2);border-radius:99px;height:7px;overflow:hidden;margin-bottom:5px;border:.5px solid var(--border)}
+.pbar{height:7px;border-radius:99px;background:#fff200;transition:width .4s ease}
+.pbar.warn{background:#ef9f27}.pbar.danger{background:#e24b4a}
+.pbar-lbl{font-size:11px;color:var(--txt3);margin-bottom:16px}
+
+hr.div{border:none;border-top:.5px solid var(--border);margin:14px 0}
+
+/* ── Section title ── */
+.sec-title{font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+
+/* ── Form ── */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+.fi{display:flex;flex-direction:column;gap:3px}
+.fi.full{grid-column:1/-1}
+.fi label{font-size:11px;color:var(--txt2)}
+.fi input,.fi select,.fi textarea{
+  font-size:13px;padding:7px 10px;border-radius:var(--radius);
+  border:.5px solid var(--border2);background:var(--bg);
+  color:var(--txt);width:100%;font-family:inherit;
+}
+.fi input:focus,.fi select:focus,.fi textarea:focus{
+  outline:none;border-color:#fff200;box-shadow:0 0 0 2px rgba(255,242,0,.15)
+}
+.fi textarea{resize:vertical;min-height:48px}
+.add-btn{
+  background:#fff200;color:#111;border:none;border-radius:var(--radius);
+  padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;width:100%;
+  margin-bottom:6px;transition:background .15s
+}
+.add-btn:hover{background:#e8db00}
+.add-btn:disabled{background:var(--bg3);color:var(--txt3);cursor:not-allowed}
+.form-msg{font-size:12px;text-align:center;min-height:18px;margin-bottom:10px}
+.form-msg.err{color:#a32d2d}.form-msg.ok{color:#0a5c34}
+
+/* ── Calendar ── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-nav-btn{background:none;border:.5px solid var(--border2);border-radius:var(--radius);padding:5px 14px;font-size:14px;cursor:pointer;color:var(--txt);transition:background .1s}
+.cal-nav-btn:hover{background:var(--bg2)}
+.cal-month{font-size:16px;font-weight:600;color:var(--txt)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-dow{text-align:center;font-size:10px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;padding:4px 0}
+.cal-day{
+  border:.5px solid var(--border);border-radius:var(--radius);
+  padding:6px 7px;min-height:82px;background:var(--bg);
+  position:relative;transition:border-color .15s
+}
+.cal-day:hover{border-color:var(--border2)}
+.cal-day.empty{background:none;border-color:transparent}
+.cal-day.today{border-color:#fff200;border-width:1.5px}
+.cal-day.over{background:#fff0f0}
+.cal-day-num{font-size:11px;font-weight:500;color:var(--txt3);margin-bottom:3px}
+.cal-day.today .cal-day-num{color:#b8a800}
+.cal-avail{font-size:15px;font-weight:600;color:var(--txt)}
+.cal-avail.warn{color:#854f0b}.cal-avail.danger{color:#a32d2d}
+.cal-used-lbl{font-size:9px;color:var(--txt3);margin-bottom:3px}
+.cal-mini-bar{height:3px;border-radius:99px;background:var(--bg3);overflow:hidden;margin-top:4px}
+.cal-mini-fill{height:3px;border-radius:99px;background:#fff200;transition:width .3s}
+.cal-mini-fill.warn{background:#ef9f27}.cal-mini-fill.danger{background:#e24b4a}
+.cal-lease-count{font-size:9px;color:var(--txt3);margin-top:3px}
+
+/* ── Table ── */
+.filter-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.filter-row input,.filter-row select{
+  font-size:12px;padding:6px 10px;border-radius:var(--radius);
+  border:.5px solid var(--border2);background:var(--bg);color:var(--txt)
+}
+.filter-row input{flex:1;min-width:140px}
+.tbl-wrap{overflow-x:auto;border:.5px solid var(--border);border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{
+  text-align:left;padding:8px 10px;font-size:10px;font-weight:600;
+  color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;
+  border-bottom:.5px solid var(--border);background:var(--bg2);white-space:nowrap
+}
+tbody tr{border-bottom:.5px solid var(--border);transition:background .1s}
+tbody tr:hover{background:var(--bg2)}
+tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
+.badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:9px;font-weight:600;letter-spacing:.04em}
+.b-active{background:#d4f7e7;color:#0a5c34}
+.b-ongoing{background:#fff200;color:#5a4d00}
+.b-expired{background:var(--bg3);color:var(--txt3)}
+.b-future{background:#e6f1fb;color:#185fa5}
+.del-btn{background:none;border:.5px solid transparent;cursor:pointer;color:var(--txt3);font-size:12px;padding:3px 7px;border-radius:4px;transition:all .1s}
+.del-btn:hover{background:#fee2e2;color:#a32d2d;border-color:#fca5a5}
+.empty-row td{text-align:center;padding:30px;color:var(--txt3);font-size:13px}
+
+/* ── Loading/offline states ── */
+.loading{text-align:center;padding:40px;color:var(--txt3);font-size:13px}
+.offline-banner{background:#fef9c3;border:.5px solid #fde047;border-radius:var(--radius);padding:8px 12px;font-size:12px;color:#713f12;margin-bottom:12px;display:none}
+.offline-banner.show{display:block}
+
+.view-hidden{display:none}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="5" width="18" height="14" rx="2" fill="#111"/>
+        <path d="M7 10h4c1.1 0 2 .9 2 2s-.9 2-2 2H7V10z" fill="#fff200"/>
+        <path d="M11 14l3 4" stroke="#fff200" stroke-width="1.5" stroke-linecap="round"/>
+        <rect x="3" y="8" width="2" height="8" rx="1" fill="#fff200"/>
+      </svg>
+    </div>
+    <div>
+      <div class="hdr-title">ROCK NASHVILLE</div>
+      <div class="hdr-sub">Parking Management · 2026</div>
+    </div>
+  </div>
+  <div class="hdr-date" id="hdr-date"></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showView('calendar')">Calendar</button>
+  <button class="tab" onclick="showView('reservations')">Reservations</button>
+  <button class="tab" onclick="showView('add')">+ Add</button>
+</div>
+
+<div class="body">
+
+  <div class="offline-banner" id="offline-banner">
+    Cannot reach the server. Check that Node.js is running on your VPS.
+  </div>
+
+  <!-- Stats — always visible -->
+  <div class="stats">
+    <div class="sc"><div class="sc-lbl">Total spots</div><div class="sc-num">300</div></div>
+    <div class="sc hl"><div class="sc-lbl">Available today</div><div class="sc-num" id="stat-avail">—</div></div>
+    <div class="sc"><div class="sc-lbl">In use today</div><div class="sc-num" id="stat-used">—</div></div>
+  </div>
+  <div class="pbar-wrap"><div class="pbar" id="pbar" style="width:0%"></div></div>
+  <div class="pbar-lbl" id="pbar-lbl">Loading...</div>
+
+  <!-- Calendar view -->
+  <div id="view-calendar">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="changeMonth(-1)">&#8592;</button>
+      <div class="cal-month" id="cal-month-label"></div>
+      <button class="cal-nav-btn" onclick="changeMonth(1)">&#8594;</button>
+    </div>
+    <div class="cal-grid" id="cal-grid">
+      <div class="loading" style="grid-column:1/-1">Loading reservations...</div>
+    </div>
+  </div>
+
+  <!-- Reservations list -->
+  <div id="view-reservations" class="view-hidden">
+    <div class="filter-row">
+      <input type="text" id="filter-search" placeholder="Search company or contact..." oninput="renderTable()">
+      <select id="filter-status" onchange="renderTable()">
+        <option value="">All statuses</option>
+        <option value="active">Active</option>
+        <option value="ongoing">Ongoing</option>
+        <option value="future">Future</option>
+        <option value="expired">Expired</option>
+      </select>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Company</th><th>Spots</th><th>Start</th><th>End</th>
+          <th>Contact</th><th>Lease</th><th>Status</th><th>Notes</th><th></th>
+        </tr></thead>
+        <tbody id="res-tbody">
+          <tr class="empty-row"><td colspan="9">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add form -->
+  <div id="view-add" class="view-hidden">
+    <div class="sec-title">New reservation</div>
+    <div class="fg">
+      <div class="fi"><label>Company / Name</label>
+        <input type="text" id="f-company" placeholder="e.g. Music City Vans"></div>
+      <div class="fi"><label>Spots</label>
+        <input type="number" id="f-spots" placeholder="e.g. 10" min="1"></div>
+      <div class="fi"><label>Start date</label>
+        <input type="date" id="f-start"></div>
+      <div class="fi"><label>End date (blank = ongoing)</label>
+        <input type="date" id="f-end"></div>
+      <div class="fi"><label>Contact</label>
+        <input type="text" id="f-contact" placeholder="e.g. Chris Serino"></div>
+      <div class="fi"><label>Lease status</label>
+        <select id="f-lease">
+          <option>Signed</option>
+          <option>Pending</option>
+          <option>Unsigned</option>
+        </select>
+      </div>
+      <div class="fi full"><label>Notes</label>
+        <textarea id="f-notes" placeholder="e.g. ONGOING - taking over for Yoshi"></textarea>
+      </div>
+    </div>
+    <button class="add-btn" id="add-btn" onclick="addReservation()">+ Add reservation</button>
+    <div class="form-msg" id="form-msg"></div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// The API_URL is where the app sends its requests.
+// When running on the VPS, this empty string means
+// "same server, same IP" — so it works automatically
+// no matter what IP address your VPS has.
+// ─────────────────────────────────────────────
+const API_URL = '';
+const TOTAL = 300;
+
+let reservations = [];
+let calYear, calMonth;
+const now = new Date();
+calYear = now.getFullYear();
+calMonth = now.getMonth();
+
+// ── Utility functions ─────────────────────────
+
+function todayStr() {
+  return now.toISOString().split('T')[0];
+}
+
+function fmt(d) {
+  if (!d) return 'Ongoing';
+  const [y, m, day] = d.split('-');
+  return `${m}/${day}/${y.slice(2)}`;
+}
+
+// Figures out if a reservation is active on a given date
+function getStatus(r, dateStr) {
+  const d = dateStr || todayStr();
+  if (!r.end) return r.start <= d ? 'ongoing' : 'future';
+  if (r.start > d) return 'future';
+  if (r.end < d) return 'expired';
+  return 'active';
+}
+
+// Total spots in use on a specific date
+function spotsOnDate(dateStr) {
+  return reservations.reduce((sum, r) => {
+    const s = getStatus(r, dateStr);
+    return (s === 'active' || s === 'ongoing') ? sum + Number(r.spots) : sum;
+  }, 0);
+}
+
+// ── API calls ─────────────────────────────────
+// fetch() is the browser's built-in way to make
+// HTTP requests to a server. It returns a Promise —
+// meaning "I'll give you the answer when it's ready."
+// The 'await' keyword pauses until the answer arrives.
+
+async function loadReservations() {
+  try {
+    const res = await fetch(`${API_URL}/api/reservations`);
+    reservations = await res.json();
+    document.getElementById('offline-banner').classList.remove('show');
+    updateStats();
+    renderCalendar();
+    renderTable();
+  } catch (err) {
+    // If the fetch fails, the server isn't reachable
+    document.getElementById('offline-banner').classList.add('show');
+    document.getElementById('pbar-lbl').textContent = 'Could not reach server.';
+    console.error('Server unreachable:', err);
+  }
+}
+
+async function addReservation() {
+  const company = document.getElementById('f-company').value.trim();
+  const spots = parseInt(document.getElementById('f-spots').value);
+  const start = document.getElementById('f-start').value;
+  const msg = document.getElementById('form-msg');
+  const btn = document.getElementById('add-btn');
+
+  if (!company || !spots || !start) {
+    msg.textContent = 'Company, spots, and start date are required.';
+    msg.className = 'form-msg err';
+    return;
+  }
+
+  // Disable the button while the request is in flight
+  // so people don't accidentally double-submit
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const payload = {
+    company, spots, start,
+    end: document.getElementById('f-end').value || null,
+    contact: document.getElementById('f-contact').value.trim(),
+    lease: document.getElementById('f-lease').value,
+    notes: document.getElementById('f-notes').value.trim()
+  };
+
+  try {
+    // POST sends data TO the server (vs GET which just reads)
+    const res = await fetch(`${API_URL}/api/reservations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)  // convert JS object to JSON string
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Server error');
+    }
+
+    const newReservation = await res.json();
+    reservations.unshift(newReservation);  // add to front of local array
+
+    updateStats();
+    renderCalendar();
+    renderTable();
+
+    // Clear the form
+    ['f-company','f-spots','f-start','f-end','f-contact','f-notes']
+      .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-lease').value = 'Signed';
+    document.getElementById('f-start').value = todayStr();
+
+    msg.textContent = `Saved: ${company} (${spots} spot${spots > 1 ? 's' : ''})`;
+    msg.className = 'form-msg ok';
+
+    setTimeout(() => {
+      msg.textContent = '';
+      showView('calendar');
+    }, 1400);
+
+  } catch (err) {
+    msg.textContent = 'Error: ' + err.message;
+    msg.className = 'form-msg err';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '+ Add reservation';
+}
+
+async function deleteReservation(id) {
+  if (!confirm('Remove this reservation?')) return;
+
+  try {
+    await fetch(`${API_URL}/api/reservations/${id}`, { method: 'DELETE' });
+    reservations = reservations.filter(r => r.id !== id);
+    updateStats();
+    renderCalendar();
+    renderTable();
+  } catch (err) {
+    alert('Could not delete — check server connection.');
+  }
+}
+
+// ── UI rendering ──────────────────────────────
+
+function updateStats() {
+  const used = spotsOnDate(todayStr());
+  const avail = TOTAL - used;
+  const pct = Math.round((used / TOTAL) * 100);
+  document.getElementById('stat-avail').textContent = avail;
+  document.getElementById('stat-used').textContent = used;
+  const bar = document.getElementById('pbar');
+  bar.style.width = pct + '%';
+  bar.className = 'pbar' + (pct >= 90 ? ' danger' : pct >= 70 ? ' warn' : '');
+  document.getElementById('pbar-lbl').textContent =
+    `${used} of ${TOTAL} spots in use today (${pct}%)`;
+}
+
+function renderCalendar() {
+  const months = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  document.getElementById('cal-month-label').textContent = `${months[calMonth]} ${calYear}`;
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const t = todayStr();
+  const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const mm = String(calMonth + 1).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    const dateStr = `${calYear}-${mm}-${dd}`;
+    const used = spotsOnDate(dateStr);
+    const avail = TOTAL - used;
+    const pct = Math.round((used / TOTAL) * 100);
+    const isToday = dateStr === t;
+    const isOver = avail < 0;
+    const barCls = pct >= 90 ? ' danger' : pct >= 70 ? ' warn' : '';
+    const availCls = pct >= 90 ? ' danger' : pct >= 70 ? ' warn' : '';
+    const dayCls = (isToday ? ' today' : '') + (isOver ? ' over' : '');
+    const activeCount = reservations.filter(r => {
+      const s = getStatus(r, dateStr);
+      return s === 'active' || s === 'ongoing';
+    }).length;
+
+    html += `<div class="cal-day${dayCls}">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-avail${availCls}">${avail}</div>
+      <div class="cal-used-lbl">avail &middot; ${used} used</div>
+      <div class="cal-mini-bar">
+        <div class="cal-mini-fill${barCls}" style="width:${Math.min(pct,100)}%"></div>
+      </div>
+      ${activeCount > 0
+        ? `<div class="cal-lease-count">${activeCount} lease${activeCount > 1 ? 's' : ''}</div>`
+        : ''}
+    </div>`;
+  }
+
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function changeMonth(delta) {
+  calMonth += delta;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+
+function renderTable() {
+  const search = document.getElementById('filter-search').value.toLowerCase();
+  const sf = document.getElementById('filter-status').value;
+  const t = todayStr();
+  const bmap = { active:'b-active', ongoing:'b-ongoing', future:'b-future', expired:'b-expired' };
+
+  const rows = reservations.filter(r => {
+    const s = getStatus(r, t);
+    const match = r.company.toLowerCase().includes(search) ||
+                  (r.contact || '').toLowerCase().includes(search);
+    return match && (!sf || s === sf);
+  });
+
+  const tbody = document.getElementById('res-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No reservations found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const s = getStatus(r, t);
+    return `<tr>
+      <td style="font-weight:500">${r.company}</td>
+      <td>${r.spots}</td>
+      <td>${fmt(r.start)}</td>
+      <td>${fmt(r.end)}</td>
+      <td style="color:var(--txt2)">${r.contact || '—'}</td>
+      <td>${r.lease || '—'}</td>
+      <td><span class="badge ${bmap[s]}">${s}</span></td>
+      <td style="color:var(--txt2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+          title="${r.notes || ''}">${r.notes || ''}</td>
+      <td><button class="del-btn" onclick="deleteReservation(${r.id})">Remove</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function showView(v) {
+  ['calendar','reservations','add'].forEach(id => {
+    document.getElementById('view-' + id).classList.toggle('view-hidden', id !== v);
+  });
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['calendar','reservations','add'][i] === v);
+  });
+  if (v === 'reservations') renderTable();
+}
+
+// ── Init ──────────────────────────────────────
+document.getElementById('hdr-date').textContent =
+  now.toLocaleDateString('en-US', { weekday:'short', year:'numeric', month:'short', day:'numeric' });
+document.getElementById('f-start').value = todayStr();
+
+// Load data from the server on page open
+loadReservations();
+</script>
+</body>
+</html>

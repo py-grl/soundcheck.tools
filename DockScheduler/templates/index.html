@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='scheduler_in_style.css') }}">
+    <meta charset="UTF-8">
+    <title>Dock Scheduler — Reservations</title>
+</head>
+<body>
+<div class="page-wrapper">
+
+    <div class="header">
+        <h1>Reservations</h1>
+        <a href="/add" class="btn btn-primary">+ Add Reservation</a>
+    </div>
+
+    {% for message in get_flashed_messages() %}
+        <div class="flash">{{ message }}</div>
+    {% endfor %}
+
+    <div style="display:flex; gap:12px; margin-bottom:8px;">
+        <a href="/" class="btn btn-secondary">Home</a>
+        <a href="/monthly" class="btn btn-secondary">Monthly View</a>
+        <a href="/daily" class="btn btn-secondary">Live Dock View</a>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Company</th>
+                    <th>Dock</th>
+                    <th>Type</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Arrival</th>
+                    <th>Departure</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in reservations %}
+            <tr>
+                <td>{{ r.name }}</td>
+                <td>{{ r.company }}</td>
+                <td>{{ r.dock_number }}</td>
+                <td>{{ r.dock_type }}</td>
+                <td>{{ r.start_date }}</td>
+                <td>{{ r.end_date }}</td>
+                <td>{{ r.start_time.strftime('%I:%M %p') }}</td>
+                <td>{{ r.end_time.strftime('%I:%M %p') }}</td>
+                <td>{{ r.notes or '—' }}</td>
+                <td>
+                    <div class="action-links">
+                        <a href="/edit/{{ r.id }}" class="btn btn-secondary">Edit</a>
+                        <a href="/delete/{{ r.id }}" class="btn btn-danger">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+</body>
+</html>

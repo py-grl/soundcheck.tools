@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='scheduler_in_style.css') }}">
+    <title>Monthly View — {{ month_name }} {{ year }}</title>
+</head>
+<body>
+<div class="page-wrapper">
+
+    <div class="header">
+        <h1>Monthly View</h1>
+        <a href="/" class="btn btn-secondary">← Home</a>
+    </div>
+
+    <div class="calendar-nav">
+        <a href="/monthly/{{ prev_year }}/{{ prev_month }}" class="btn btn-secondary">← Prev</a>
+        <h2>{{ month_name }} {{ year }}</h2>
+        <a href="/monthly/{{ next_year }}/{{ next_month }}" class="btn btn-secondary">Next →</a>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="calendar-table">
+            <thead>
+                <tr>
+                    <th>Mon</th>
+                    <th>Tue</th>
+                    <th>Wed</th>
+                    <th>Thu</th>
+                    <th>Fri</th>
+                    <th>Sat</th>
+                    <th>Sun</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for week in cal %}
+                    <tr>
+                        {% for day in week %}
+                            <td {% if day != 0 and day == today.day and today.month == month and today.year == year %}class="today-cell"{% endif %}>
+                                {% if day != 0 %}
+                                    <div onclick="openModal({{ day }})">
+                                        <div class="day-number">{{ day }}</div>
+                                        {% if day in res_by_day %}
+                                            <span class="day-dot"></span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- Modal -->
+<div id="modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3 id="modal-title"></h3>
+        <div id="modal-body"></div>
+        <button onclick="closeModal()" class="btn btn-secondary modal-close">Close</button>
+    </div>
+</div>
+
+<script>
+    const resByDay = {
+        {% for day, day_reservations in res_by_day.items() %}
+        "{{ day }}": [
+            {% for r in day_reservations %}
+            {
+                name: "{{ r.name }}",
+                company: "{{ r.company }}",
+                dock: "{{ r.dock_number }}",
+                type: "{{ r.dock_type }}",
+                startDate: "{{ r.start_date }}",
+                endDate: "{{ r.end_date }}",
+                arrival: "{{ r.start_time.strftime('%I:%M %p') }}",
+                departure: "{{ r.end_time.strftime('%I:%M %p') }}",
+                notes: "{{ r.notes or '' }}",
+            },
+            {% endfor %}
+        ],
+        {% endfor %}
+    };
+
+    function openModal(day) {
+        const reservations = resByDay[day] || [];
+        document.getElementById('modal-title').textContent = 'Reservations — Day ' + day;
+
+        let html = '';
+        if (reservations.length === 0) {
+            html = '<p>No reservations for this day.</p>';
+        } else {
+            reservations.forEach(r => {
+                const dateRange = r.startDate === r.endDate
+                    ? r.startDate
+                    : r.startDate + ' → ' + r.endDate;
+                html += `<div class="modal-reservation">
+                    <strong>${r.name}</strong> — ${r.company}<br>
+                    Dock ${r.dock} (${r.type})<br>
+                    ${dateRange}<br>
+                    Arrival: ${r.arrival} &nbsp;|&nbsp; Departure: ${r.departure}
+                    ${r.notes ? '<br><em>' + r.notes + '</em>' : ''}
+                </div>`;
+            });
+        }
+
+        document.getElementById('modal-body').innerHTML = html;
+        document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.remove('active');
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='scheduler_in_style.css') }}">
+    <title>{{ 'Edit' if r is defined else 'Add' }} Reservation</title>
+</head>
+<body>
+<div class="page-wrapper">
+
+    <div class="header">
+        <h1>{{ 'Edit' if r is defined else 'Add' }} Reservation</h1>
+        <a href="/reservations" class="btn btn-secondary">← Back</a>
+    </div>
+
+    {% for message in get_flashed_messages() %}
+        <div class="flash">{{ message }}</div>
+    {% endfor %}
+
+    <div class="form-wrapper">
+        <form method="POST" action="{{ '/edit/' ~ r.id if r is defined else '/add' }}">
+
+            <div class="form-group">
+                <label>Company / Artist</label>
+                <input type="text" name="company" value="{{ r.company if r is defined else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label>Contact Name</label>
+                <input type="text" name="name" value="{{ r.name if r is defined else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label>Contact Info</label>
+                <input type="text" name="email" value="{{ r.email if r is defined else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label>Dock Number</label>
+                <select name="dock_number" required>
+                    {% set dock_options = ['301','302','303','304','305','306A','306B','307','308','309','310','311','312A','312B','312C','313','314','315','316','316B','317B','317','318','319','320','321','321B','322B','322','323','324','325','326','327','328A','328B','328C'] %}
+                    {% for d in dock_options %}
+                        <option value="{{ d }}" {% if r is defined and r.dock_number == d %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Dock Type</label>
+                <select name="dock_type">
+                    <option value="regular" {% if r is defined and r.dock_type == 'regular' %}selected{% endif %}>Regular</option>
+                    <option value="bus" {% if r is defined and r.dock_type == 'bus' %}selected{% endif %}>Bus</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Start Date</label>
+                <input type="date" name="start_date" value="{{ r.start_date if r is defined else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label>End Date</label>
+                <input type="date" name="end_date" value="{{ r.end_date if r is defined else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label>Arrival Time</label>
+                <input type="time" name="start_time" value="{{ r.start_time if r is defined else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label>Departure Time</label>
+                <input type="time" name="end_time" value="{{ r.end_time if r is defined else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea name="notes" placeholder="Any special requests or details...">{{ r.notes if r is defined else '' }}</textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if r is defined else 'Add Reservation' }}</button>
+
+        </form>
+    </div>
+</div>
+</body>
+</html>

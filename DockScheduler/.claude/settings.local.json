@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py --list)",
+      "Bash(dir \"C:\\\\Users\\\\sound\\\\PycharmProjects\\\\DockScheduler\" /b /a)"
+    ]
+  }
+}

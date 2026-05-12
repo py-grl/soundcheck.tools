@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soundcheck — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --yellow: #fff200;
+      --yellow-dim: #e6d900;
+      --bg: #0d0d0d;
+      --surface: #151515;
+      --border: #222;
+      --border-hover: #333;
+      --text: #f0f0f0;
+      --muted: #555;
+      --error: #ff4d4d;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,242,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,242,0,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* yellow glow blob */
+    body::after {
+      content: '';
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,242,0,0.07) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .wordmark {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--yellow);
+      margin-bottom: 2rem;
+    }
+
+    .tab-row {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 2rem;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .tab.active {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .form { display: flex; flex-direction: column; gap: 14px; }
+    .form.hidden { display: none; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+
+    label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+
+    input::placeholder { color: #333; }
+    input:hover { border-color: var(--border-hover); }
+    input:focus { border-color: var(--yellow); }
+
+    .btn {
+      margin-top: 6px;
+      padding: 13px;
+      border-radius: 10px;
+      border: none;
+      background: var(--yellow);
+      color: #1a1a00;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn:hover { background: var(--yellow-dim); }
+    .btn:active { transform: scale(0.98); }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 6px 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .error-msg {
+      font-size: 12px;
+      color: var(--error);
+      display: none;
+      padding: 10px 12px;
+      background: rgba(255,77,77,0.08);
+      border-radius: 8px;
+      border: 1px solid rgba(255,77,77,0.2);
+    }
+
+    .error-msg.show { display: block; }
+
+    .forgot {
+      text-align: right;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 0.15s;
+      background: none;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .forgot:hover { color: var(--yellow); }
+
+    .footer-note {
+      margin-top: 1.5rem;
+      font-size: 11px;
+      color: #333;
+      text-align: center;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="wordmark">Soundcheck.tools</div>
+
+    <div class="tab-row">
+      <button class="tab active" id="tab-login" onclick="switchTab('login')">Log in</button>
+      <button class="tab" id="tab-signup" onclick="switchTab('signup')">Sign up</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form class="form" id="form-login" onsubmit="handleLogin(event)">
+      <div id="login-error" class="error-msg">Incorrect email or password.</div>
+      <div class="field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" placeholder="you@clairglobal.com" required />
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" required />
+      </div>
+      <button type="button" class="forgot" onclick="handleForgot()">Forgot password?</button>
+      <button type="submit" class="btn">Log in</button>
+    </form>
+
+    <!-- SIGNUP FORM -->
+    <form class="form hidden" id="form-signup" onsubmit="handleSignup(event)">
+      <div id="signup-error" class="error-msg"></div>
+      <div class="field">
+        <label for="signup-name">Full name</label>
+        <input type="text" id="signup-name" placeholder="Your name" required />
+      </div>
+      <div class="field">
+        <label for="signup-email">Email</label>
+        <input type="email" id="signup-email" placeholder="you@soundcheck.tools" required />
+      </div>
+      <div class="field">
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" placeholder="Min. 8 characters" required minlength="8" />
+      </div>
+      <div class="field">
+        <label for="signup-confirm">Confirm password</label>
+        <input type="password" id="signup-confirm" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn">Create account</button>
+    </form>
+
+    <p class="footer-note">Access is granted by your administrator.<br>Contact your manager if you need help.</p>
+  </div>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('form-signup').classList.toggle('hidden', tab !== 'signup');
+      document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+      document.getElementById('login-error').classList.remove('show');
+      document.getElementById('signup-error').classList.remove('show');
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const err = document.getElementById('login-error');
+      err.classList.remove('show');
+
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('login-email').value,
+          password: document.getElementById('login-password').value
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        err.textContent = data.error || 'Login failed.';
+        err.classList.add('show');
+        return;
+      }
+
+      window.location.href = '/index.html';
+    }
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      const pw = document.getElementById('signup-password').value;
+      const confirm = document.getElementById('signup-confirm').value;
+      const err = document.getElementById('signup-error');
+
+      if (pw !== confirm) {
+        err.textContent = 'Passwords do not match.';
+        err.classList.add('show');
+        return;
+      }
+
+      err.classList.remove('show');
+
+      const res = await fetch('/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: document.getElementById('signup-name').value,
+          email: document.getElementById('signup-email').value,
+          password: pw
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        err.textContent = data.error || 'Signup failed.';
+        err.classList.add('show');
+        return;
+      }
+
+      err.style.color = '#4ade80';
+      err.textContent = data.message;
+      err.classList.add('show');
+      document.getElementById('form-signup').querySelector('.btn').disabled = true;
+    }
+
+    async function handleForgot() {
+      const email = document.getElementById('login-email').value;
+      await fetch('/auth/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      alert('If that email exists, a reset link has been sent.');
+    }
+  </script>
+</body>
+</html>
