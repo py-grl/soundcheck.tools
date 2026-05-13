@@ -4,12 +4,13 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from models import db, Reservation
 from datetime import date, time, datetime
 import calendar
+import os
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dockscheduler.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = 'f764818ae0cc0b7deef1c3c8b63b34e47c13ae0eb4fc865c4e34fc81281e3cfb'
+app.secret_key = os.environ['SECRET_KEY']
 db.init_app(app)
 with app.app_context():
     db.create_all()
