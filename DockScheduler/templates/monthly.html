@@ -23,13 +23,7 @@
         <table class="calendar-table">
             <thead>
                 <tr>
-                    <th>Mon</th>
-                    <th>Tue</th>
-                    <th>Wed</th>
-                    <th>Thu</th>
-                    <th>Fri</th>
-                    <th>Sat</th>
-                    <th>Sun</th>
+                    <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th>
                 </tr>
             </thead>
             <tbody>
@@ -40,9 +34,11 @@
                                 {% if day != 0 %}
                                     <div onclick="openModal({{ day }})">
                                         <div class="day-number">{{ day }}</div>
-                                        {% if day in res_by_day %}
-                                            <span class="day-dot"></span>
-                                        {% endif %}
+                                        {% for r in res_by_day.get(day, []) %}
+                                            <div class="cal-chip" style="background:{{ res_colors[r.id] }};">
+                                                {{ r.display_name[:13] }}{% if r.dock_number %}&nbsp;·&nbsp;{{ r.dock_number.split(',')[0] }}{% if ',' in r.dock_number %}+{% endif %}{% endif %}
+                                            </div>
+                                        {% endfor %}
                                     </div>
                                 {% endif %}
                             </td>
@@ -55,7 +51,6 @@
 
 </div>
 
-<!-- Modal -->
 <div id="modal" class="modal-overlay">
     <div class="modal-box">
         <h3 id="modal-title"></h3>
@@ -70,15 +65,18 @@
         "{{ day }}": [
             {% for r in day_reservations %}
             {
-                name: "{{ r.name }}",
-                company: "{{ r.company }}",
-                dock: "{{ r.dock_number }}",
-                type: "{{ r.dock_type }}",
+                id:        {{ r.id }},
+                name:      "{{ (r.name or '') | replace('"', '&quot;') }}",
+                company:   "{{ (r.company or '') | replace('"', '&quot;') }}",
+                dock:      "{{ r.dock_number }}",
+                type:      "{{ r.dock_type }}",
                 startDate: "{{ r.start_date }}",
-                endDate: "{{ r.end_date }}",
-                arrival: "{{ r.start_time.strftime('%I:%M %p') }}",
+                endDate:   "{% if r.end_date.year == 9999 %}Indefinite{% else %}{{ r.end_date }}{% endif %}",
+                allDay:    {{ 'true' if r.all_day else 'false' }},
+                arrival:   "{{ r.start_time.strftime('%I:%M %p') }}",
                 departure: "{{ r.end_time.strftime('%I:%M %p') }}",
-                notes: "{{ r.notes or '' }}",
+                notes:     "{{ (r.notes or '') | replace('"', '&quot;') | replace('\n', ' ') }}",
+                color:     "{{ res_colors[r.id] }}",
             },
             {% endfor %}
         ],
@@ -86,7 +84,7 @@
     };
 
     function openModal(day) {
-        const reservations = resByDay[day] || [];
+        const reservations = resByDay[String(day)] || [];
         document.getElementById('modal-title').textContent = 'Reservations — Day ' + day;
 
         let html = '';
@@ -95,14 +93,15 @@
         } else {
             reservations.forEach(r => {
                 const dateRange = r.startDate === r.endDate
-                    ? r.startDate
-                    : r.startDate + ' → ' + r.endDate;
-                html += `<div class="modal-reservation">
-                    <strong>${r.name}</strong> — ${r.company}<br>
+                    ? r.startDate : r.startDate + ' → ' + r.endDate;
+                const timeStr = r.allDay ? 'All Day' : r.arrival + ' – ' + r.departure;
+                const label   = r.company || r.name || 'Reservation';
+                const sub     = r.company && r.name ? ' — ' + r.name : '';
+                html += `<div class="modal-reservation" style="border-left:4px solid ${r.color}; padding-left:12px; margin-bottom:12px;">
+                    <strong style="color:${r.color}">${label}</strong>${sub}<br>
                     Dock ${r.dock} (${r.type})<br>
-                    ${dateRange}<br>
-                    Arrival: ${r.arrival} &nbsp;|&nbsp; Departure: ${r.departure}
-                    ${r.notes ? '<br><em>' + r.notes + '</em>' : ''}
+                    ${dateRange} &nbsp;|&nbsp; ${timeStr}
+                    ${r.notes ? '<br><em style="color:#aaa">' + r.notes + '</em>' : ''}
                 </div>`;
             });
         }
@@ -114,6 +113,10 @@
     function closeModal() {
         document.getElementById('modal').classList.remove('active');
     }
+
+    document.getElementById('modal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
 </script>
 </body>
 </html>

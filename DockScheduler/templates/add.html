@@ -22,66 +22,117 @@
 
             <div class="form-group">
                 <label>Company / Artist</label>
-                <input type="text" name="company" value="{{ r.company if r is defined else '' }}" required>
+                <input type="text" name="company" value="{{ r.company if r is defined else '' }}">
             </div>
 
             <div class="form-group">
                 <label>Contact Name</label>
-                <input type="text" name="name" value="{{ r.name if r is defined else '' }}" required>
+                <input type="text" name="name" value="{{ r.name if r is defined else '' }}">
             </div>
 
             <div class="form-group">
                 <label>Contact Info</label>
-                <input type="text" name="email" value="{{ r.email if r is defined else '' }}" required>
+                <input type="text" name="email" value="{{ r.email if r is defined else '' }}">
             </div>
 
             <div class="form-group">
-                <label>Dock Number</label>
-                <select name="dock_number" required>
-                    {% set dock_options = ['301','302','303','304','305','306A','306B','307','308','309','310','311','312A','312B','312C','313','314','315','316','316B','317B','317','318','319','320','321','321B','322B','322','323','324','325','326','327','328A','328B','328C'] %}
+                <label>Dock Number(s) <span class="field-hint">Click to select, click again to deselect</span></label>
+                <div class="dock-grid">
                     {% for d in dock_options %}
-                        <option value="{{ d }}" {% if r is defined and r.dock_number == d %}selected{% endif %}>{{ d }}</option>
+                        <label class="dock-checkbox">
+                            <input type="checkbox" name="dock_number" value="{{ d }}"
+                                {% if r is defined and d in r.dock_numbers %}checked{% endif %}>
+                            <span class="dock-tile">{{ d }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Dock Type</label>
+                <select name="dock_type" id="dock_type" onchange="handleTypeChange(this.value)">
+                    {% for val, label in dock_types %}
+                        <option value="{{ val }}"
+                            {% if r is defined and r.dock_type == val %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <div class="form-group">
-                <label>Dock Type</label>
-                <select name="dock_type">
-                    <option value="regular" {% if r is defined and r.dock_type == 'regular' %}selected{% endif %}>Regular</option>
-                    <option value="bus" {% if r is defined and r.dock_type == 'bus' %}selected{% endif %}>Bus</option>
-                </select>
-            </div>
-
-            <div class="form-group">
                 <label>Start Date</label>
-                <input type="date" name="start_date" value="{{ r.start_date if r is defined else '' }}" required>
+                <input type="date" name="start_date" id="start_date"
+                    value="{{ r.start_date if r is defined else '' }}" required>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="end_date_group">
                 <label>End Date</label>
-                <input type="date" name="end_date" value="{{ r.end_date if r is defined else '' }}" required>
+                <input type="date" name="end_date" id="end_date"
+                    value="{{ r.end_date if (r is defined and r.end_date.year != 9999) else '' }}">
             </div>
 
             <div class="form-group">
-                <label>Arrival Time</label>
-                <input type="time" name="start_time" value="{{ r.start_time if r is defined else '' }}" required>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="all_day" id="all_day"
+                        {% if r is defined and r.all_day %}checked{% endif %}
+                        onchange="toggleAllDay(this.checked)">
+                    All Day
+                </label>
             </div>
 
-            <div class="form-group">
-                <label>Departure Time</label>
-                <input type="time" name="end_time" value="{{ r.end_time if r is defined else '' }}" required>
+            <div id="time_fields">
+                <div class="form-group">
+                    <label>Arrival Time</label>
+                    <input type="time" name="start_time" id="start_time"
+                        value="{{ r.start_time.strftime('%H:%M') if (r is defined and not r.all_day) else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Departure Time</label>
+                    <input type="time" name="end_time" id="end_time"
+                        value="{{ r.end_time.strftime('%H:%M') if (r is defined and not r.all_day) else '' }}">
+                </div>
             </div>
 
             <div class="form-group">
                 <label>Notes</label>
-                <textarea name="notes" placeholder="Any special requests or details...">{{ r.notes if r is defined else '' }}</textarea>
+                <textarea name="notes"
+                    placeholder="Any special requests or details...">{{ r.notes if r is defined else '' }}</textarea>
             </div>
 
-            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if r is defined else 'Add Reservation' }}</button>
+            <button type="submit" class="btn btn-primary">
+                {{ 'Save Changes' if r is defined else 'Add Reservation' }}
+            </button>
 
         </form>
     </div>
 </div>
+
+<script>
+    function toggleAllDay(checked) {
+        document.getElementById('time_fields').style.display = checked ? 'none' : 'block';
+    }
+
+    function handleTypeChange(val) {
+        const endDateGroup  = document.getElementById('end_date_group');
+        const timeFields    = document.getElementById('time_fields');
+        const allDayBox     = document.getElementById('all_day');
+        if (val === 'utility') {
+            endDateGroup.style.display = 'none';
+            timeFields.style.display   = 'none';
+            allDayBox.checked = true;
+        } else {
+            endDateGroup.style.display = 'block';
+            timeFields.style.display   = allDayBox.checked ? 'none' : 'block';
+        }
+    }
+
+    (function init() {
+        const type    = document.getElementById('dock_type').value;
+        const allDay  = document.getElementById('all_day').checked;
+        handleTypeChange(type);
+        if (allDay && type !== 'utility') {
+            document.getElementById('time_fields').style.display = 'none';
+        }
+    })();
+</script>
 </body>
 </html>

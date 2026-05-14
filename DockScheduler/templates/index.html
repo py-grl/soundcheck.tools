@@ -17,19 +17,44 @@
         <div class="flash">{{ message }}</div>
     {% endfor %}
 
-    <div style="display:flex; gap:12px; margin-bottom:8px;">
+    <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
         <a href="/" class="btn btn-secondary">Home</a>
         <a href="/monthly" class="btn btn-secondary">Monthly View</a>
         <a href="/daily" class="btn btn-secondary">Live Dock View</a>
+    </div>
+
+    <div class="filter-tabs">
+        <a href="/reservations?filter=all&sort={{ sort_mode }}"
+           class="filter-tab {% if filter_mode == 'all' %}active{% endif %}">All</a>
+        <a href="/reservations?filter=today&sort={{ sort_mode }}"
+           class="filter-tab {% if filter_mode == 'today' %}active{% endif %}">Today</a>
+        <a href="/reservations?filter=upcoming&sort={{ sort_mode }}"
+           class="filter-tab {% if filter_mode == 'upcoming' %}active{% endif %}">Upcoming</a>
+        <a href="/reservations?filter=past&sort={{ sort_mode }}"
+           class="filter-tab {% if filter_mode == 'past' %}active{% endif %}">Past</a>
+    </div>
+
+    <div class="sort-bar">
+        <span class="sort-label">Sort:</span>
+        <a href="/reservations?filter={{ filter_mode }}&sort=recent"
+           class="sort-btn {% if sort_mode == 'recent' %}active{% endif %}">Most Recent</a>
+        <a href="/reservations?filter={{ filter_mode }}&sort=old"
+           class="sort-btn {% if sort_mode == 'old' %}active{% endif %}">Oldest</a>
+        <a href="/reservations?filter={{ filter_mode }}&sort=duration"
+           class="sort-btn {% if sort_mode == 'duration' %}active{% endif %}">Duration</a>
+        <a href="/reservations?filter={{ filter_mode }}&sort=name"
+           class="sort-btn {% if sort_mode == 'name' %}active{% endif %}">Name</a>
+        <a href="/reservations?filter={{ filter_mode }}&sort=dock"
+           class="sort-btn {% if sort_mode == 'dock' %}active{% endif %}">Dock</a>
     </div>
 
     <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Company</th>
-                    <th>Dock</th>
+                    <th>Company / Artist</th>
+                    <th>Contact</th>
+                    <th>Dock(s)</th>
                     <th>Type</th>
                     <th>Start Date</th>
                     <th>End Date</th>
@@ -42,25 +67,31 @@
             <tbody>
             {% for r in reservations %}
             <tr>
-                <td>{{ r.name }}</td>
-                <td>{{ r.company }}</td>
+                <td>{{ r.company or '—' }}</td>
+                <td>{{ r.name or '—' }}</td>
                 <td>{{ r.dock_number }}</td>
                 <td>{{ r.dock_type }}</td>
                 <td>{{ r.start_date }}</td>
-                <td>{{ r.end_date }}</td>
-                <td>{{ r.start_time.strftime('%I:%M %p') }}</td>
-                <td>{{ r.end_time.strftime('%I:%M %p') }}</td>
+                <td>{% if r.end_date.year == 9999 %}Indefinite{% else %}{{ r.end_date }}{% endif %}</td>
+                <td>{% if r.all_day %}All Day{% else %}{{ r.start_time.strftime('%I:%M %p') }}{% endif %}</td>
+                <td>{% if r.all_day %}All Day{% else %}{{ r.end_time.strftime('%I:%M %p') }}{% endif %}</td>
                 <td>{{ r.notes or '—' }}</td>
                 <td>
                     <div class="action-links">
                         <a href="/edit/{{ r.id }}" class="btn btn-secondary">Edit</a>
-                        <a href="/delete/{{ r.id }}" class="btn btn-danger">Delete</a>
+                        <form method="POST" action="/delete/{{ r.id }}" style="display:inline"
+                              onsubmit="return confirm('Delete this reservation?')">
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
                     </div>
                 </td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
+        {% if reservations | length == 0 %}
+            <p style="color:#aaa; padding:24px 0;">No reservations found.</p>
+        {% endif %}
     </div>
 
 </div>

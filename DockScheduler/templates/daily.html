@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <link rel="stylesheet" href="{{ url_for('static', filename='scheduler_in_style.css') }}">
     <title>Live Dock View</title>
+    <meta http-equiv="refresh" content="30">
 </head>
 <body>
 <div class="page-wrapper">
@@ -13,9 +14,25 @@
         <a href="/" class="btn btn-secondary">← Home</a>
     </div>
 
-    <div class="daily-info">
-        <span class="daily-date">{{ today.strftime('%A') }}, {{ today.strftime('%B') }} {{ today.day }}, {{ today.year }}</span>
-        <span class="daily-clock" id="live-time"></span>
+    <div class="daily-nav">
+        <a href="/daily?date={{ prev_date }}" class="btn btn-secondary">← Prev</a>
+        <div class="daily-info">
+            <span class="daily-date">
+                {{ view_date.strftime('%A') }}, {{ view_date.strftime('%B') }}
+                {{ view_date.day }}, {{ view_date.year }}
+                {% if view_date == today %}<span class="today-badge">TODAY</span>{% endif %}
+            </span>
+            {% if view_date == today %}
+                <span class="daily-clock" id="live-time"></span>
+            {% endif %}
+        </div>
+        <a href="/daily?date={{ next_date }}" class="btn btn-secondary">Next →</a>
+        {% if view_date != today %}
+            <a href="/daily" class="btn btn-secondary">Back to Today</a>
+        {% endif %}
+        <input type="date" value="{{ view_date }}"
+               onchange="window.location='/daily?date='+this.value"
+               class="date-jump-input">
     </div>
 
     <div class="legend">
@@ -23,7 +40,7 @@
             <span class="legend-dot" style="background:#00ff88;"></span>Available
         </span>
         <span class="legend-item">
-            <span class="legend-dot" style="background:#ff3333;"></span>Occupied
+            <span class="legend-dot" style="background:#ff3333;"></span>Occupied / Blocked
         </span>
     </div>
 
@@ -32,26 +49,8 @@
 <div class="map-wrapper">
     <img src="{{ url_for('static', filename='images/DW Map.jpg') }}" alt="Dock Map">
 
-    <!-- VERTICAL ARM — 301 to 311 -->
-    {% set v_docks = ['301','302','303','304','305','306A','306B','307','308','309','310','311'] %}
-    {% set v_coords = [
-        (23.4,  5.3),
-        (25.4, 10.5),
-        (25.9, 12.2),
-        (26.4, 14.0),
-        (27.4, 16.1),
-        (31.1, 28.7),
-        (32.4, 30.2),
-        (33.2, 32.6),
-        (33.9, 34.3),
-        (34.4, 35.8),
-        (35.3, 37.5),
-        (35.9, 39.8)
-    ] %}
-
-    {% for i in range(v_docks|length) %}
-    {% set dock_num = v_docks[i] %}
-    {% set coord = v_coords[i] %}
+    <!-- VERTICAL ARM -->
+    {% for dock_num, coord in v_docks_coords %}
     {% set status = dock_status[dock_num] %}
     <div class="dock-dot {{ 'green' if status.available else 'red' }}"
          style="left: {{ coord[0] }}%; top: {{ coord[1] }}%;">
@@ -59,49 +58,27 @@
             <strong>{{ status.label }}</strong><br>
             {% if status.available %}
                 Available
+            {% elif status.reservation.dock_type == 'utility' %}
+                UTILITY<br>Indefinite Block
+            {% elif status.reservation.dock_type == 'closed' %}
+                CLOSED
+            {% elif status.reservation.dock_type == 'overlock' %}
+                OVERLOCKED<br>{{ status.reservation.display_name }}
             {% else %}
-                {{ status.reservation.name }}<br>
-                {{ status.reservation.company }}<br>
-                {{ status.reservation.start_time.strftime('%I:%M %p') }} –
-                {{ status.reservation.end_time.strftime('%I:%M %p') }}
+                {{ status.reservation.display_name }}<br>
+                {% if status.reservation.all_day %}
+                    All Day
+                {% else %}
+                    {{ status.reservation.start_time.strftime('%I:%M %p') }} –
+                    {{ status.reservation.end_time.strftime('%I:%M %p') }}
+                {% endif %}
             {% endif %}
         </div>
     </div>
     {% endfor %}
 
-    <!-- HORIZONTAL ARM — 312 to 328 -->
-    {% set h_docks = ['312A','312B','312C','313','314','315','316','316B','317B','317','318','319','320','321','321B','322B','322','323','324','325','326','327','328A','328B','328C'] %}
-    {% set h_coords = [
-        (41.9, 37.0),
-        (42.9, 37.2),
-        (44.6, 37.0),
-        (45.8, 37.0),
-        (46.9, 37.0),
-        (48.1, 37.0),
-        (49.2, 37.0),
-        (50.2, 37.0),
-        (51.6, 37.0),
-        (52.5, 37.0),
-        (53.9, 37.1),
-        (56.1, 37.0),
-        (57.3, 37.0),
-        (58.1, 37.0),
-        (59.4, 37.0),
-        (60.6, 37.0),
-        (62.1, 37.0),
-        (62.9, 37.0),
-        (66.2, 37.0),
-        (67.6, 37.0),
-        (68.6, 37.0),
-        (69.7, 37.1),
-        (70.9, 37.0),
-        (72.4, 37.0),
-        (73.2, 37.0)
-    ] %}
-
-    {% for i in range(h_docks|length) %}
-    {% set dock_num = h_docks[i] %}
-    {% set coord = h_coords[i] %}
+    <!-- HORIZONTAL ARM -->
+    {% for dock_num, coord in h_docks_coords %}
     {% set status = dock_status[dock_num] %}
     <div class="dock-dot {{ 'green' if status.available else 'red' }}"
          style="left: {{ coord[0] }}%; top: {{ coord[1] }}%;">
@@ -109,11 +86,20 @@
             <strong>{{ status.label }}</strong><br>
             {% if status.available %}
                 Available
+            {% elif status.reservation.dock_type == 'utility' %}
+                UTILITY<br>Indefinite Block
+            {% elif status.reservation.dock_type == 'closed' %}
+                CLOSED
+            {% elif status.reservation.dock_type == 'overlock' %}
+                OVERLOCKED<br>{{ status.reservation.display_name }}
             {% else %}
-                {{ status.reservation.name }}<br>
-                {{ status.reservation.company }}<br>
-                {{ status.reservation.start_time.strftime('%I:%M %p') }} –
-                {{ status.reservation.end_time.strftime('%I:%M %p') }}
+                {{ status.reservation.display_name }}<br>
+                {% if status.reservation.all_day %}
+                    All Day
+                {% else %}
+                    {{ status.reservation.start_time.strftime('%I:%M %p') }} –
+                    {{ status.reservation.end_time.strftime('%I:%M %p') }}
+                {% endif %}
             {% endif %}
         </div>
     </div>
@@ -123,12 +109,14 @@
 
 <script>
     function updateTime() {
+        const el = document.getElementById('live-time');
+        if (!el) return;
         const now = new Date();
         let h = now.getHours();
         const m = now.getMinutes().toString().padStart(2, '0');
         const ampm = h >= 12 ? 'PM' : 'AM';
         h = h % 12 || 12;
-        document.getElementById('live-time').textContent = h + ':' + m + ' ' + ampm;
+        el.textContent = h + ':' + m + ' ' + ampm;
     }
     updateTime();
     setInterval(updateTime, 1000);

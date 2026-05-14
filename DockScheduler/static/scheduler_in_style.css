@@ -507,3 +507,227 @@ DAILY MAP
 .dock-dot:hover .tooltip {
     display: block;
 }
+
+/*========
+CALENDAR EVENT CHIPS
+ */
+
+.cal-chip {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fff;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+/*========
+FILTER TABS
+ */
+
+.filter-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0;
+    border-bottom: 1px solid #333;
+}
+
+.filter-tab {
+    padding: 10px 20px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #aaa;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.filter-tab:hover {
+    color: #fff200;
+    text-decoration: none;
+}
+
+.filter-tab.active {
+    color: #fff200;
+    border-bottom-color: #fff200;
+}
+
+/*========
+SORT BAR
+ */
+
+.sort-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.sort-label {
+    color: #aaa;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-right: 4px;
+}
+
+.sort-btn {
+    padding: 5px 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #aaa;
+    border: 1px solid #333;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.sort-btn:hover {
+    color: #fff200;
+    border-color: #fff200;
+    text-decoration: none;
+}
+
+.sort-btn.active {
+    color: #000;
+    background: #fff200;
+    border-color: #fff200;
+}
+
+/*========
+DAILY DATE NAV
+ */
+
+.daily-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.today-badge {
+    display: inline-block;
+    background: #fff200;
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.date-jump-input {
+    background: #111;
+    border: 1px solid #333;
+    color: #fff;
+    padding: 8px 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    outline: none;
+    width: auto;
+}
+
+.date-jump-input:focus {
+    border-color: #fff200;
+}
+
+/*========
+DOCK CHECKBOX GRID
+ */
+
+.dock-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 0;
+}
+
+.dock-checkbox {
+    display: block;
+    cursor: pointer;
+    text-transform: none;
+    font-size: 1rem;
+    letter-spacing: 0;
+    color: #fff;
+    margin: 0;
+}
+
+.dock-checkbox input[type="checkbox"] {
+    display: none;
+}
+
+.dock-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 40px;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: #aaa;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.dock-tile:hover {
+    border-color: #fff200;
+    color: #fff200;
+}
+
+.dock-checkbox input:checked + .dock-tile {
+    background: #fff200;
+    border-color: #fff200;
+    color: #000;
+}
+
+/*========
+FORM HELPERS
+ */
+
+.field-hint {
+    font-size: 0.72rem;
+    color: #666;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: #aaa;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    accent-color: #fff200;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
