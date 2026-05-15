@@ -10,13 +10,13 @@
 
     <div class="header">
         <h1>Monthly View</h1>
-        <a href="/" class="btn btn-secondary">← Home</a>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">← Home</a>
     </div>
 
     <div class="calendar-nav">
-        <a href="/monthly/{{ prev_year }}/{{ prev_month }}" class="btn btn-secondary">← Prev</a>
+        <a href="{{ url_for('monthly', year=prev_year, month=prev_month) }}" class="btn btn-secondary">← Prev</a>
         <h2>{{ month_name }} {{ year }}</h2>
-        <a href="/monthly/{{ next_year }}/{{ next_month }}" class="btn btn-secondary">Next →</a>
+        <a href="{{ url_for('monthly', year=next_year, month=next_month) }}" class="btn btn-secondary">Next →</a>
     </div>
 
     <div class="table-wrapper">

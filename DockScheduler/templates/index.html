@@ -10,7 +10,7 @@
 
     <div class="header">
         <h1>Reservations</h1>
-        <a href="/add" class="btn btn-primary">+ Add Reservation</a>
+        <a href="{{ url_for('add_reservation') }}" class="btn btn-primary">+ Add Reservation</a>
     </div>
 
     {% for message in get_flashed_messages() %}
@@ -18,33 +18,33 @@
     {% endfor %}
 
     <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
-        <a href="/" class="btn btn-secondary">Home</a>
-        <a href="/monthly" class="btn btn-secondary">Monthly View</a>
-        <a href="/daily" class="btn btn-secondary">Live Dock View</a>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">Home</a>
+        <a href="{{ url_for('monthly') }}" class="btn btn-secondary">Monthly View</a>
+        <a href="{{ url_for('daily_view') }}" class="btn btn-secondary">Live Dock View</a>
     </div>
 
     <div class="filter-tabs">
-        <a href="/reservations?filter=all&sort={{ sort_mode }}"
+        <a href="{{ url_for('index', filter='all', sort=sort_mode) }}"
            class="filter-tab {% if filter_mode == 'all' %}active{% endif %}">All</a>
-        <a href="/reservations?filter=today&sort={{ sort_mode }}"
+        <a href="{{ url_for('index', filter='today', sort=sort_mode) }}"
            class="filter-tab {% if filter_mode == 'today' %}active{% endif %}">Today</a>
-        <a href="/reservations?filter=upcoming&sort={{ sort_mode }}"
+        <a href="{{ url_for('index', filter='upcoming', sort=sort_mode) }}"
            class="filter-tab {% if filter_mode == 'upcoming' %}active{% endif %}">Upcoming</a>
-        <a href="/reservations?filter=past&sort={{ sort_mode }}"
+        <a href="{{ url_for('index', filter='past', sort=sort_mode) }}"
            class="filter-tab {% if filter_mode == 'past' %}active{% endif %}">Past</a>
     </div>
 
     <div class="sort-bar">
         <span class="sort-label">Sort:</span>
-        <a href="/reservations?filter={{ filter_mode }}&sort=recent"
+        <a href="{{ url_for('index', filter=filter_mode, sort='recent') }}"
            class="sort-btn {% if sort_mode == 'recent' %}active{% endif %}">Most Recent</a>
-        <a href="/reservations?filter={{ filter_mode }}&sort=old"
+        <a href="{{ url_for('index', filter=filter_mode, sort='old') }}"
            class="sort-btn {% if sort_mode == 'old' %}active{% endif %}">Oldest</a>
-        <a href="/reservations?filter={{ filter_mode }}&sort=duration"
+        <a href="{{ url_for('index', filter=filter_mode, sort='duration') }}"
            class="sort-btn {% if sort_mode == 'duration' %}active{% endif %}">Duration</a>
-        <a href="/reservations?filter={{ filter_mode }}&sort=name"
+        <a href="{{ url_for('index', filter=filter_mode, sort='name') }}"
            class="sort-btn {% if sort_mode == 'name' %}active{% endif %}">Name</a>
-        <a href="/reservations?filter={{ filter_mode }}&sort=dock"
+        <a href="{{ url_for('index', filter=filter_mode, sort='dock') }}"
            class="sort-btn {% if sort_mode == 'dock' %}active{% endif %}">Dock</a>
     </div>
 
@@ -78,8 +78,9 @@
                 <td>{{ r.notes or '—' }}</td>
                 <td>
                     <div class="action-links">
-                        <a href="/edit/{{ r.id }}" class="btn btn-secondary">Edit</a>
-                        <form method="POST" action="/delete/{{ r.id }}" style="display:inline"
+                        <a href="{{ url_for('edit_reservation', id=r.id) }}" class="btn btn-secondary">Edit</a>
+                        <form method="POST" action="{{ url_for('delete_reservation', id=r.id) }}"
+                              style="display:inline"
                               onsubmit="return confirm('Delete this reservation?')">
                             <button type="submit" class="btn btn-danger">Delete</button>
                         </form>

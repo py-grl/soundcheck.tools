@@ -11,11 +11,11 @@
 
     <div class="header">
         <h1>Live Dock View</h1>
-        <a href="/" class="btn btn-secondary">← Home</a>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">← Home</a>
     </div>
 
     <div class="daily-nav">
-        <a href="/daily?date={{ prev_date }}" class="btn btn-secondary">← Prev</a>
+        <a href="{{ url_for('daily_view', date=prev_date) }}" class="btn btn-secondary">← Prev</a>
         <div class="daily-info">
             <span class="daily-date">
                 {{ view_date.strftime('%A') }}, {{ view_date.strftime('%B') }}
@@ -26,12 +26,12 @@
                 <span class="daily-clock" id="live-time"></span>
             {% endif %}
         </div>
-        <a href="/daily?date={{ next_date }}" class="btn btn-secondary">Next →</a>
+        <a href="{{ url_for('daily_view', date=next_date) }}" class="btn btn-secondary">Next →</a>
         {% if view_date != today %}
-            <a href="/daily" class="btn btn-secondary">Back to Today</a>
+            <a href="{{ url_for('daily_view') }}" class="btn btn-secondary">Back to Today</a>
         {% endif %}
         <input type="date" value="{{ view_date }}"
-               onchange="window.location='/daily?date='+this.value"
+               onchange="window.location='{{ url_for('daily_view') }}?date='+this.value"
                class="date-jump-input">
     </div>
 
@@ -49,7 +49,6 @@
 <div class="map-wrapper">
     <img src="{{ url_for('static', filename='images/DW Map.jpg') }}" alt="Dock Map">
 
-    <!-- VERTICAL ARM -->
     {% for dock_num, coord in v_docks_coords %}
     {% set status = dock_status[dock_num] %}
     <div class="dock-dot {{ 'green' if status.available else 'red' }}"
@@ -66,8 +65,7 @@
                 OVERLOCKED<br>{{ status.reservation.display_name }}
             {% else %}
                 {{ status.reservation.display_name }}<br>
-                {% if status.reservation.all_day %}
-                    All Day
+                {% if status.reservation.all_day %}All Day
                 {% else %}
                     {{ status.reservation.start_time.strftime('%I:%M %p') }} –
                     {{ status.reservation.end_time.strftime('%I:%M %p') }}
@@ -77,7 +75,6 @@
     </div>
     {% endfor %}
 
-    <!-- HORIZONTAL ARM -->
     {% for dock_num, coord in h_docks_coords %}
     {% set status = dock_status[dock_num] %}
     <div class="dock-dot {{ 'green' if status.available else 'red' }}"
@@ -94,8 +91,7 @@
                 OVERLOCKED<br>{{ status.reservation.display_name }}
             {% else %}
                 {{ status.reservation.display_name }}<br>
-                {% if status.reservation.all_day %}
-                    All Day
+                {% if status.reservation.all_day %}All Day
                 {% else %}
                     {{ status.reservation.start_time.strftime('%I:%M %p') }} –
                     {{ status.reservation.end_time.strftime('%I:%M %p') }}
