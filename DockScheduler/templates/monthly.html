@@ -23,7 +23,7 @@
         <table class="calendar-table">
             <thead>
                 <tr>
-                    <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th>
+                    <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thur</th><th>Fri</th><th>Sat</th>
                 </tr>
             </thead>
             <tbody>
@@ -61,6 +61,7 @@
 
 <script>
     const resByDay = {
+
         {% for day, day_reservations in res_by_day.items() %}
         "{{ day }}": [
             {% for r in day_reservations %}
@@ -82,8 +83,11 @@
         ],
         {% endfor %}
     };
+    const calYear  = {{ year }};
+    const calMonth = {{ month }};
 
     function openModal(day) {
+        const dateStr = calYear + '-' + String(calMonth).padStart(2,'0') + '-' + String(day).padStart(2,'0');
         const reservations = resByDay[String(day)] || [];
         document.getElementById('modal-title').textContent = 'Reservations — Day ' + day;
 
@@ -102,10 +106,13 @@
                     Dock ${r.dock} (${r.type})<br>
                     ${dateRange} &nbsp;|&nbsp; ${timeStr}
                     ${r.notes ? '<br><em style="color:#aaa">' + r.notes + '</em>' : ''}
+                      <a href="/edit/${r.id}" class="btn btn-secondary" style="margin-top:8px; display:inline-block;">Edit</a>
+
                 </div>`;
             });
         }
 
+        html += `<a href="/add?date=${dateStr}" class="btn btn-primary" style="margin-top:12px; display:inline-block;">+ Add Reservation</a>`;
         document.getElementById('modal-body').innerHTML = html;
         document.getElementById('modal').classList.add('active');
     }

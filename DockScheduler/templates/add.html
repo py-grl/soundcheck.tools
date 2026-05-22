@@ -17,6 +17,7 @@
         <div class="flash">{{ message }}</div>
     {% endfor %}
 
+    <div class="add-layout">
     <div class="form-wrapper">
         <form method="POST"
               action="{{ url_for('edit_reservation', id=r.id) if r is defined else url_for('add_reservation') }}">
@@ -62,7 +63,7 @@
             <div class="form-group">
                 <label>Start Date</label>
                 <input type="date" name="start_date" id="start_date"
-                    value="{{ r.start_date if r is defined else '' }}" required>
+                    value="{{ r.start_date if r is defined else prefill_date }}" required>
             </div>
 
             <div class="form-group" id="end_date_group">
@@ -83,13 +84,31 @@
             <div id="time_fields">
                 <div class="form-group">
                     <label>Arrival Time</label>
-                    <input type="time" name="start_time" id="start_time"
-                        value="{{ r.start_time.strftime('%H:%M') if (r is defined and not r.all_day) else '' }}">
+                    <select name="start_time" id="start_time">
+                        <option value="" disabled selected>Select time</option>
+                        {% for h in range(24) %}
+                            {% for m in [0, 30] %}
+                            <option value="{{ '%02d' % h }}:{{ '%02d' % m }}"
+                                {% if r is defined and not r.all_day and r.start_time.hour == h and r.start_time.minute == m %}selected{% endif %}>
+                                {{ (h % 12) if (h % 12) != 0 else 12 }}:{{ '%02d' % m }} {{ 'AM' if h < 12 else 'PM' }}
+                            </option>
+                            {% endfor %}
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Departure Time</label>
-                    <input type="time" name="end_time" id="end_time"
-                        value="{{ r.end_time.strftime('%H:%M') if (r is defined and not r.all_day) else '' }}">
+                    <select name="end_time" id="end_time">
+                        <option value="" disabled selected>Select time</option>
+                        {% for h in range(24) %}
+                            {% for m in [0, 30] %}
+                            <option value="{{ '%02d' % h }}:{{ '%02d' % m }}"
+                                {% if r is defined and not r.all_day and r.end_time.hour == h and r.end_time.minute == m %}selected{% endif %}>
+                                {{ (h % 12) if (h % 12) != 0 else 12 }}:{{ '%02d' % m }} {{ 'AM' if h < 12 else 'PM' }}
+                            </option>
+                            {% endfor %}
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
 
@@ -104,6 +123,22 @@
             </button>
 
         </form>
+    </div>
+
+    <div class="cal-panel">
+        <div class="cal-nav">
+            <button type="button" class="btn btn-secondary" onclick="prevMonth()">←</button>
+            <span id="cal-heading"></span>
+            <button type="button" class="btn btn-secondary" onclick="nextMonth()">→</button>
+        </div>
+        <table class="calendar-table">
+            <thead>
+                <tr><th>Su</th><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th></tr>
+            </thead>
+            <tbody id="cal-body"></tbody>
+        </table>
+    </div>
+
     </div>
 </div>
 
@@ -134,6 +169,118 @@
             document.getElementById('time_fields').style.display = 'none';
         }
     })();
+
+    // ── Calendar panel ──────────────────────────────────────────
+    const allRes = {{ all_res_json | tojson }};
+    let calYear, calMonth;
+
+    function renderCalendar(year, month) {
+        calYear  = year;
+        calMonth = month;
+
+        const MONTHS = ['January','February','March','April','May','June',
+                        'July','August','September','October','November','December'];
+        document.getElementById('cal-heading').textContent = MONTHS[month - 1] + ' ' + year;
+
+        // Build resByDay for this month
+        const resByDay = {};
+        const mStart = new Date(year, month - 1, 1);
+        const mEnd   = new Date(year, month, 0);
+
+        allRes.forEach(r => {
+            const rStart = new Date(r.start + 'T00:00:00');
+            const rEnd   = r.end ? new Date(r.end + 'T00:00:00') : new Date(9999, 0, 1);
+            if (rStart > mEnd || rEnd < mStart) return;
+
+            const clipped = new Date(Math.max(rStart, mStart));
+            const until   = new Date(Math.min(rEnd, mEnd));
+            while (clipped <= until) {
+                const d = clipped.getDate();
+                (resByDay[d] = resByDay[d] || []).push(r);
+                clipped.setDate(clipped.getDate() + 1);
+            }
+        });
+
+        // Read selected date range from form
+        const startVal = document.getElementById('start_date').value;
+        const endEl    = document.getElementById('end_date');
+        const endVal   = endEl ? endEl.value : '';
+        const selStart = startVal ? new Date(startVal + 'T00:00:00') : null;
+        const selEnd   = endVal   ? new Date(endVal   + 'T00:00:00') : null;
+
+        const todayMs = new Date(); todayMs.setHours(0, 0, 0, 0);
+
+        // Build grid HTML
+        const firstDow  = new Date(year, month - 1, 1).getDay();
+        const daysTotal = new Date(year, month, 0).getDate();
+        let html = '';
+        let day  = 1;
+
+        for (let w = 0; w < 6; w++) {
+            if (day > daysTotal) break;
+            html += '<tr>';
+            for (let d = 0; d < 7; d++) {
+                if (w === 0 && d < firstDow) {
+                    html += '<td></td>';
+                } else if (day <= daysTotal) {
+                    const cell    = new Date(year, month - 1, day);
+                    const isToday = cell.getTime() === todayMs.getTime();
+                    const isSel   = (selStart && cell.getTime() === selStart.getTime()) ||
+                                    (selEnd   && cell.getTime() === selEnd.getTime());
+                    const inRange = selStart && selEnd && cell > selStart && cell < selEnd;
+
+                    const cls = [
+                        isToday ? 'today-cell' : '',
+                        isSel   ? 'cal-selected' : '',
+                        inRange ? 'cal-in-range' : '',
+                    ].filter(Boolean).join(' ');
+
+                    const chips = (resByDay[day] || []).map(r =>
+                        `<div class="cal-chip" style="background:${r.color}">${r.name.substring(0, 13)}</div>`
+                    ).join('');
+
+                    html += `<td class="${cls}"><div class="day-number">${day}</div>${chips}</td>`;
+                    day++;
+                } else {
+                    html += '<td></td>';
+                }
+            }
+            html += '</tr>';
+        }
+
+        document.getElementById('cal-body').innerHTML = html;
+    }
+
+    function prevMonth() {
+        calMonth--;
+        if (calMonth < 1) { calMonth = 12; calYear--; }
+        renderCalendar(calYear, calMonth);
+    }
+
+    function nextMonth() {
+        calMonth++;
+        if (calMonth > 12) { calMonth = 1; calYear++; }
+        renderCalendar(calYear, calMonth);
+    }
+
+    // Initialize from start_date value or today
+    (function initCal() {
+        const v = document.getElementById('start_date').value;
+        const d = v ? new Date(v + 'T00:00:00') : new Date();
+        renderCalendar(d.getFullYear(), d.getMonth() + 1);
+    })();
+
+    // Follow start_date changes
+    document.getElementById('start_date').addEventListener('change', function () {
+        const d = this.value ? new Date(this.value + 'T00:00:00') : new Date();
+        renderCalendar(d.getFullYear(), d.getMonth() + 1);
+    });
+
+    // Re-render on end_date change to update range highlight
+    const endDateEl = document.getElementById('end_date');
+    if (endDateEl) {
+        endDateEl.addEventListener('change', () => renderCalendar(calYear, calMonth));
+    }
 </script>
 </body>
 </html>

@@ -17,16 +17,19 @@ CALENDAR_COLORS = [
 ]
 
 DOCK_TYPES = [
-    ('regular',  'Regular'),
+    ('semi',     'Semi'),
     ('bus',      'Bus'),
-    ('truck',    'Truck'),
+    ('boxtruck', 'Box Truck'),
+    ('trailer',  'Trailer'),
+    ('other',    'Other'),
     ('closed',   'Closed'),
-    ('overlock', 'Overlock'),
     ('utility',  'Utility (Indefinite)'),
 ]
 
 DOCK_OPTIONS = [
-    '301','302','303','304','305','306A','306B','307','308','309','310','311',
+    '301A','301B','301C','302','303','304',
+    '305A','305B','305C','305D','305E','305F',
+    '306A','306B','307','308','309','310','311',
     '312A','312B','312C','313','314','315','316','316B','317B','317','318',
     '319','320','321','321B','322B','322','323','324','325','326','327',
     '328A','328B','328C',
@@ -92,3 +95,13 @@ class Reservation(db.Model):
             if new_start < existing_end and new_end > existing_start:
                 return True
         return False
+
+
+class CustomMarker(db.Model):
+    __tablename__ = 'custom_markers'
+    id         = db.Column(db.Integer, primary_key=True)
+    label      = db.Column(db.String(100), nullable=False)
+    x          = db.Column(db.Float, nullable=False)
+    y          = db.Column(db.Float, nullable=False)
+    expires_at = db.Column(db.Date, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request, flash, redirect, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
-from models import db, Reservation, CALENDAR_COLORS, DOCK_TYPES, DOCK_OPTIONS
+from models import db, Reservation, CustomMarker, CALENDAR_COLORS, DOCK_TYPES, DOCK_OPTIONS
 from datetime import date, time, datetime, timedelta
 from dotenv import load_dotenv
 import calendar
 import os
+
 
 load_dotenv()
 
@@ -45,11 +46,18 @@ with app.app_context():
 
 
 ALL_DOCKS = [
-    {'number': '301',  'label': '301'},
+    {'number': '301A', 'label': '301A'},
+    {'number': '301B', 'label': '301B'},
+    {'number': '301C', 'label': '301C'},
     {'number': '302',  'label': '302'},
     {'number': '303',  'label': '303'},
     {'number': '304',  'label': '304'},
-    {'number': '305',  'label': '305'},
+    {'number': '305A', 'label': '305A'},
+    {'number': '305B', 'label': '305B'},
+    {'number': '305C', 'label': '305C'},
+    {'number': '305D', 'label': '305D'},
+    {'number': '305E', 'label': '305E'},
+    {'number': '305F', 'label': '305F'},
     {'number': '306A', 'label': '306A'},
     {'number': '306B', 'label': '306B'},
     {'number': '307',  'label': '307'},
@@ -85,9 +93,16 @@ ALL_DOCKS = [
 ]
 
 V_COORDS = [
-    (23.4, 5.3),(25.4,10.5),(25.9,12.2),(26.4,14.0),(27.4,16.1),
-    (31.1,28.7),(32.4,30.2),(33.2,32.6),(33.9,34.3),(34.4,35.8),
-    (35.3,37.5),(35.9,39.8),
+    # 301A, 301B, 301C
+    (23.4,  5.3), (23.9,  6.7), (24.4,  8.1),
+    # 302, 303, 304
+    (25.4, 10.5), (25.9, 12.2), (26.4, 14.0),
+    # 305A–305F
+    (27.4, 16.1), (27.9, 17.5), (28.4, 18.9),
+    (28.9, 20.3), (29.4, 21.7), (29.9, 23.1),
+    # 306A, 306B, 307–311
+    (31.7, 28.3), (32.4, 30.2), (33.2, 32.6),
+    (33.9, 34.3), (34.4, 35.8), (35.3, 37.5), (35.9, 39.8),
 ]
 H_COORDS = [
     (41.9,37.0),(42.9,37.2),(44.6,37.0),(45.8,37.0),(46.9,37.0),
@@ -96,8 +111,8 @@ H_COORDS = [
     (60.6,37.0),(62.1,37.0),(62.9,37.0),(66.2,37.0),(67.6,37.0),
     (68.6,37.0),(69.7,37.1),(70.9,37.0),(72.4,37.0),(73.2,37.0),
 ]
-V_DOCKS = [d['number'] for d in ALL_DOCKS[:12]]
-H_DOCKS = [d['number'] for d in ALL_DOCKS[12:]]
+V_DOCKS = [d['number'] for d in ALL_DOCKS[:19]]
+H_DOCKS = [d['number'] for d in ALL_DOCKS[19:]]
 
 
 @app.route('/')
@@ -209,8 +224,18 @@ def edit_reservation(id):
         flash('Reservation updated!')
         return redirect(url_for('index'))
 
+    all_res_json = [
+        {
+            'name':  r.display_name,
+            'start': str(r.start_date),
+            'end':   str(r.end_date) if r.end_date.year != 9999 else None,
+            'color': CALENDAR_COLORS[r.id % len(CALENDAR_COLORS)],
+        }
+        for r in Reservation.query.all()
+    ]
     return render_template('add.html', r=reservation,
-                           dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS)
+                           dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS,
+                           all_res_json=all_res_json)
 
 
 @app.route('/add', methods=['GET', 'POST'])
@@ -265,8 +290,18 @@ def add_reservation():
         db.session.commit()
         flash('Reservation added!')
         return redirect(url_for('index'))
-
-    return render_template('add.html', dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS)
+    prefill_date = request.args.get('date', '')
+    all_res_json = [
+        {
+            'name':  r.display_name,
+            'start': str(r.start_date),
+            'end':   str(r.end_date) if r.end_date.year != 9999 else None,
+            'color': CALENDAR_COLORS[r.id % len(CALENDAR_COLORS)],
+        }
+        for r in Reservation.query.all()
+    ]
+    return render_template('add.html', dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS,
+                           prefill_date=prefill_date, all_res_json=all_res_json)
 
 
 @app.route('/daily')
@@ -324,6 +359,8 @@ def daily_view():
     v_docks_coords = list(zip(V_DOCKS, V_COORDS))
     h_docks_coords = list(zip(H_DOCKS, H_COORDS))
 
+    custom_markers = CustomMarker.query.filter(CustomMarker.expires_at >= view_date).all()
+
     return render_template('daily.html',
         dock_status=dock_status,
         v_docks_coords=v_docks_coords,
@@ -333,7 +370,29 @@ def daily_view():
         now=now_time,
         prev_date=prev_date,
         next_date=next_date,
+        custom_markers=custom_markers,
     )
+
+
+@app.route('/custom-marker/add', methods=['POST'])
+def add_custom_marker():
+    label      = request.form.get('label', '').strip() or 'Custom Marker'
+    x          = float(request.form['x'])
+    y          = float(request.form['y'])
+    expires_at = date.fromisoformat(request.form['expires_at'])
+    date_param = request.form.get('date', '')
+    db.session.add(CustomMarker(label=label, x=x, y=y, expires_at=expires_at))
+    db.session.commit()
+    return redirect(url_for('daily_view', date=date_param))
+
+
+@app.route('/custom-marker/delete/<int:id>', methods=['POST'])
+def delete_custom_marker(id):
+    marker     = CustomMarker.query.get_or_404(id)
+    date_param = request.form.get('date', '')
+    db.session.delete(marker)
+    db.session.commit()
+    return redirect(url_for('daily_view', date=date_param))
 
 
 @app.route('/monthly')

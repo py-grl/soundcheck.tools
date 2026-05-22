@@ -30,9 +30,6 @@
         {% if view_date != today %}
             <a href="{{ url_for('daily_view') }}" class="btn btn-secondary">Back to Today</a>
         {% endif %}
-        <input type="date" value="{{ view_date }}"
-               onchange="window.location='{{ url_for('daily_view') }}?date='+this.value"
-               class="date-jump-input">
     </div>
 
     <div class="legend">
@@ -46,13 +43,28 @@
 
 </div>
 
+<div class="map-action-bar">
+    <input type="date" value="{{ view_date }}"
+           onchange="window.location='{{ url_for('daily_view') }}?date='+this.value"
+           class="date-jump-input" style="flex:1;">
+    <a href="{{ url_for('add_reservation') }}?date={{ view_date }}" class="btn btn-primary">+ Add Reservation</a>
+    <button type="button" id="add-marker-btn" class="btn btn-secondary" onclick="enterPlacementMode()">+ Add Marker</button>
+</div>
+
+<div id="placement-banner" class="placement-banner">
+    Click anywhere on the map to place your marker
+    <button type="button" onclick="exitPlacementMode()" class="placement-cancel">Cancel</button>
+</div>
+
 <div class="map-wrapper">
     <img src="{{ url_for('static', filename='images/DW Map.jpg') }}" alt="Dock Map">
 
     {% for dock_num, coord in v_docks_coords %}
     {% set status = dock_status[dock_num] %}
     <div class="dock-dot {{ 'green' if status.available else 'red' }}"
-         style="left: {{ coord[0] }}%; top: {{ coord[1] }}%;">
+         style="left: {{ coord[0] }}%; top: {{ coord[1] }}%;"
+         onclick="openDockModal('{{ dock_num }}')">
+
         <div class="tooltip">
             <strong>{{ status.label }}</strong><br>
             {% if status.available %}
@@ -78,7 +90,9 @@
     {% for dock_num, coord in h_docks_coords %}
     {% set status = dock_status[dock_num] %}
     <div class="dock-dot {{ 'green' if status.available else 'red' }}"
-         style="left: {{ coord[0] }}%; top: {{ coord[1] }}%;">
+         style="left: {{ coord[0] }}%; top: {{ coord[1] }}%;"
+        onclick="openDockModal('{{ dock_num }}')">
+
         <div class="tooltip">
             <strong>{{ status.label }}</strong><br>
             {% if status.available %}
@@ -101,7 +115,50 @@
     </div>
     {% endfor %}
 
-</div>
+    <div id="placement-overlay" onclick="captureCoords(event)"></div>
+
+    {% for marker in custom_markers %}
+    <div class="custom-dot"
+         style="left:{{ marker.x }}%; top:{{ marker.y }}%;"
+         onclick="openCustomMarkerModal({{ marker.id }}, '{{ marker.label | replace("'", "\\'") }}', '{{ marker.expires_at.strftime('%b %d, %Y') }}')">
+        <div class="tooltip">
+            <strong>{{ marker.label }}</strong><br>
+            Until {{ marker.expires_at.strftime('%b %d') }}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div id="dock-modal" class="modal-overlay">
+      <div class="modal-box">
+          <h3 id="dock-modal-title"></h3>
+          <div id="dock-modal-body"></div>
+          <button onclick="closeDockModal()" class="btn btn-secondary modal-close">Close</button>
+      </div>
+    </div>
+
+    <div id="placement-modal" class="modal-overlay">
+      <div class="modal-box">
+          <h3>New Custom Marker</h3>
+          <form method="POST" action="{{ url_for('add_custom_marker') }}">
+              <input type="hidden" name="x" id="new-marker-x">
+              <input type="hidden" name="y" id="new-marker-y">
+              <input type="hidden" name="date" value="{{ view_date }}">
+              <div class="form-group">
+                  <label>Label</label>
+                  <input type="text" name="label" placeholder="e.g. Overflow parking" required>
+              </div>
+              <div class="form-group">
+                  <label>Expires</label>
+                  <input type="date" name="expires_at" required>
+              </div>
+              <div style="display:flex; gap:12px; margin-top:20px;">
+                  <button type="submit" class="btn btn-primary">Place Marker</button>
+                  <button type="button" onclick="cancelPlacementModal()" class="btn btn-secondary">Cancel</button>
+              </div>
+          </form>
+      </div>
+    </div>
+
 
 <script>
     function updateTime() {
@@ -116,6 +173,106 @@
     }
     updateTime();
     setInterval(updateTime, 1000);
+
+    const dockData = {
+  {% for dock_num, status in dock_status.items() %}
+    "{{ dock_num }}": {
+          label:     "{{ status.label }}",
+          available: {{ 'true' if status.available else 'false' }},
+          {% if not status.available %}
+          resId:     {{ status.reservation.id }},
+          name:      "{{ (status.reservation.display_name or '') | replace('"', '&quot;') }}",
+          type:      "{{ status.reservation.dock_type }}",
+          allDay:    {{ 'true' if status.reservation.all_day else 'false' }},
+          arrival:   "{{ status.reservation.start_time.strftime('%I:%M %p') }}",
+          departure: "{{ status.reservation.end_time.strftime('%I:%M %p') }}",
+          {% endif %}
+      },
+      {% endfor %}
+  };
+
+    function openDockModal(dock_num ) {
+        const dock = dockData[dock_num];
+        document.getElementById('dock-modal-title').textContent = 'Dock ' + dock.label;
+
+        let html = '';
+        if (dock.available) {
+            html = '<p style="color:#00ff88">Available</p>';
+        } else if (dock.type === 'utility') {
+            html = '<p>UTILITY - Indefinite Block</p>';
+        } else if (dock.type === 'closed') {
+            html = '<p>CLOSED</p>';
+        } else {
+            const timeStr = dock.allDay ? 'All Day' : dock.arrival + '-' + dock.departure;
+            const typeLabel = {
+                semi: 'Semi', bus: 'Bus', boxtruck: 'Box Truck',
+                trailer: 'Trailer', other: 'Other', overlock: 'Overlock'
+            }[dock.type] || dock.type;
+            html = `<p><strong>${dock.name}</strong><br>
+                    ${typeLabel}<br>
+                    ${timeStr}</p>
+                    <a href="/edit/${dock.resId}" class="btn btn-secondary" style="margin-top:8px; display:inline-block;">Edit</a>`;
+        }
+        html += `<br><a href="/add?date={{ view_date }}" class="btn btn-primary" style="margin-top:12px; display:inline-block;">+ Add Reservation</a>`;
+
+        document.getElementById('dock-modal-body').innerHTML = html;
+        document.getElementById('dock-modal').classList.add('active');
+    }
+
+    function closeDockModal() {
+        document.getElementById('dock-modal').classList.remove('active');
+    }
+
+    document.getElementById('dock-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeDockModal();
+    });
+
+    // ── Custom marker placement ──────────────────────────────────
+    function enterPlacementMode() {
+        document.getElementById('placement-overlay').classList.add('active');
+        document.getElementById('placement-banner').classList.add('active');
+        document.getElementById('add-marker-btn').textContent = 'Placing...';
+        document.getElementById('add-marker-btn').disabled = true;
+    }
+
+    function exitPlacementMode() {
+        document.getElementById('placement-overlay').classList.remove('active');
+        document.getElementById('placement-banner').classList.remove('active');
+        document.getElementById('add-marker-btn').textContent = '+ Add Marker';
+        document.getElementById('add-marker-btn').disabled = false;
+    }
+
+    function captureCoords(e) {
+        const overlay = document.getElementById('placement-overlay');
+        const rect    = overlay.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width  * 100).toFixed(2);
+        const y = ((e.clientY - rect.top)  / rect.height * 100).toFixed(2);
+        document.getElementById('new-marker-x').value = x;
+        document.getElementById('new-marker-y').value = y;
+        exitPlacementMode();
+        document.getElementById('placement-modal').classList.add('active');
+    }
+
+    function cancelPlacementModal() {
+        document.getElementById('placement-modal').classList.remove('active');
+    }
+
+    document.getElementById('placement-modal').addEventListener('click', function(e) {
+        if (e.target === this) cancelPlacementModal();
+    });
+
+    // ── Custom marker info/delete ────────────────────────────────
+    function openCustomMarkerModal(id, label, expires) {
+        document.getElementById('dock-modal-title').textContent = label;
+        document.getElementById('dock-modal-body').innerHTML = `
+            <p style="color:#aaa; margin-bottom:16px;">Custom marker &mdash; expires ${expires}</p>
+            <form method="POST" action="/custom-marker/delete/${id}">
+                <input type="hidden" name="date" value="{{ view_date }}">
+                <button type="submit" class="btn btn-danger">Remove Marker</button>
+            </form>`;
+        document.getElementById('dock-modal').classList.add('active');
+    }
+
 </script>
 </body>
 </html>
