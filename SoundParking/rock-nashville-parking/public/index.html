@@ -131,6 +131,10 @@ tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
 .b-future{background:#e6f1fb;color:#185fa5}
 .del-btn{background:none;border:.5px solid transparent;cursor:pointer;color:var(--txt3);font-size:12px;padding:3px 7px;border-radius:4px;transition:all .1s}
 .del-btn:hover{background:#fee2e2;color:#a32d2d;border-color:#fca5a5}
+.edit-btn{background:none;border:.5px solid transparent;cursor:pointer;color:var(--txt3);font-size:12px;padding:3px 7px;border-radius:4px;transition:all .1s;margin-right:2px}
+.edit-btn:hover{background:#fefce8;color:#854d0e;border-color:#fde047}
+.cancel-btn{background:none;border:.5px solid var(--border2);cursor:pointer;color:var(--txt2);font-size:12px;padding:7px 14px;border-radius:var(--radius);margin-bottom:6px;width:100%;transition:background .15s}
+.cancel-btn:hover{background:var(--bg3)}
 .empty-row td{text-align:center;padding:30px;color:var(--txt3);font-size:13px}
 
 /* ── Loading/offline states ── */
@@ -139,6 +143,30 @@ tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
 .offline-banner.show{display:block}
 
 .view-hidden{display:none}
+
+/* ── History (per-record activity) ── */
+.hist-btn{background:none;border:.5px solid transparent;cursor:pointer;color:var(--txt3);font-size:12px;padding:3px 7px;border-radius:4px;transition:all .1s;margin-right:2px;display:inline-flex;align-items:center;vertical-align:middle}
+.hist-btn:hover{background:#fffbe6;color:#854d0e;border-color:#fde047}
+@media(prefers-color-scheme:dark){.hist-btn:hover{background:#2a2600;color:#fde047}}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-ov.show{display:flex}
+.modal-card{background:var(--bg);border:.5px solid var(--border2);border-radius:var(--radius-lg);width:100%;max-width:460px;max-height:80vh;overflow-y:auto;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal-card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.modal-card-title{font-size:14px;font-weight:600;color:var(--txt)}
+.modal-x{background:none;border:none;color:var(--txt3);font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
+.modal-x:hover{color:var(--txt)}
+.h-item{display:flex;gap:11px;padding:11px 0;border-bottom:.5px solid var(--border);align-items:flex-start}
+.h-item:last-child{border-bottom:none}
+.h-badge{flex-shrink:0;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 0;border-radius:99px;width:62px;text-align:center}
+.h-badge.create{background:#d4f7e7;color:#0a5c34}
+.h-badge.edit{background:#fff200;color:#5a4d00}
+.h-badge.delete{background:#fee2e2;color:#a32d2d}
+.h-badge.approve{background:#dcfce7;color:#166534}
+.h-badge.permissions{background:#e6f1fb;color:#185fa5}
+.h-badge.default{background:var(--bg3);color:var(--txt2)}
+.h-detail{font-size:12px;color:var(--txt);line-height:1.4}
+.h-meta{font-size:10px;color:var(--txt3);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+.h-empty{text-align:center;color:var(--txt3);font-size:12px;padding:24px 0}
 </style>
 </head>
 <body>
@@ -221,7 +249,7 @@ tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
 
   <!-- Add form -->
   <div id="view-add" class="view-hidden">
-    <div class="sec-title">New reservation</div>
+    <div class="sec-title" id="form-title">New reservation</div>
     <div class="fg">
       <div class="fi"><label>Company / Name</label>
         <input type="text" id="f-company" placeholder="e.g. Music City Vans"></div>
@@ -244,10 +272,21 @@ tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
         <textarea id="f-notes" placeholder="e.g. ONGOING - taking over for Yoshi"></textarea>
       </div>
     </div>
-    <button class="add-btn" id="add-btn" onclick="addReservation()">+ Add reservation</button>
+    <button class="add-btn" id="add-btn" onclick="saveReservation()">+ Add reservation</button>
+    <button class="cancel-btn view-hidden" id="cancel-btn" onclick="cancelEdit()">Cancel edit</button>
     <div class="form-msg" id="form-msg"></div>
   </div>
 
+</div>
+
+<div class="modal-ov" id="hist-modal">
+  <div class="modal-card">
+    <div class="modal-card-hd">
+      <div class="modal-card-title" id="hist-title">History</div>
+      <button class="modal-x" onclick="closeHistory()" aria-label="Close">&times;</button>
+    </div>
+    <div id="hist-content"></div>
+  </div>
 </div>
 
 <script>
@@ -257,10 +296,11 @@ tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
 // "same server, same IP" — so it works automatically
 // no matter what IP address your VPS has.
 // ─────────────────────────────────────────────
-const API_URL = '';
+const API_URL = location.pathname.startsWith('/parking') ? '/parking' : '';
 const TOTAL = 300;
 
 let reservations = [];
+let editingId = null;
 let calYear, calMonth;
 const now = new Date();
 calYear = now.getFullYear();
@@ -317,7 +357,40 @@ async function loadReservations() {
   }
 }
 
-async function addReservation() {
+function editReservation(id) {
+  const r = reservations.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+
+  document.getElementById('f-company').value = r.company || '';
+  document.getElementById('f-spots').value   = r.spots   || '';
+  document.getElementById('f-start').value   = r.start   || '';
+  document.getElementById('f-end').value     = r.end     || '';
+  document.getElementById('f-contact').value = r.contact || '';
+  document.getElementById('f-lease').value   = r.lease   || 'Signed';
+  document.getElementById('f-notes').value   = r.notes   || '';
+
+  document.getElementById('form-title').textContent = 'Edit reservation';
+  document.getElementById('add-btn').textContent = 'Save changes';
+  document.getElementById('cancel-btn').classList.remove('view-hidden');
+  document.getElementById('form-msg').textContent = '';
+
+  showView('add');
+}
+
+function cancelEdit() {
+  editingId = null;
+  document.getElementById('form-title').textContent = 'New reservation';
+  document.getElementById('add-btn').textContent = '+ Add reservation';
+  document.getElementById('cancel-btn').classList.add('view-hidden');
+  ['f-company','f-spots','f-end','f-contact','f-notes']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-lease').value = 'Signed';
+  document.getElementById('f-start').value = todayStr();
+  document.getElementById('form-msg').textContent = '';
+}
+
+async function saveReservation() {
   const company = document.getElementById('f-company').value.trim();
   const spots = parseInt(document.getElementById('f-spots').value);
   const start = document.getElementById('f-start').value;
@@ -330,8 +403,6 @@ async function addReservation() {
     return;
   }
 
-  // Disable the button while the request is in flight
-  // so people don't accidentally double-submit
   btn.disabled = true;
   btn.textContent = 'Saving...';
 
@@ -344,11 +415,12 @@ async function addReservation() {
   };
 
   try {
-    // POST sends data TO the server (vs GET which just reads)
-    const res = await fetch(`${API_URL}/api/reservations`, {
-      method: 'POST',
+    const isEdit = editingId !== null;
+    const url = isEdit ? `${API_URL}/api/reservations/${editingId}` : `${API_URL}/api/reservations`;
+    const res = await fetch(url, {
+      method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)  // convert JS object to JSON string
+      body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
@@ -356,18 +428,19 @@ async function addReservation() {
       throw new Error(err.error || 'Server error');
     }
 
-    const newReservation = await res.json();
-    reservations.unshift(newReservation);  // add to front of local array
+    const saved = await res.json();
+
+    if (isEdit) {
+      const idx = reservations.findIndex(r => r.id === editingId);
+      if (idx !== -1) reservations[idx] = saved;
+    } else {
+      reservations.unshift(saved);
+    }
 
     updateStats();
     renderCalendar();
     renderTable();
-
-    // Clear the form
-    ['f-company','f-spots','f-start','f-end','f-contact','f-notes']
-      .forEach(id => document.getElementById(id).value = '');
-    document.getElementById('f-lease').value = 'Signed';
-    document.getElementById('f-start').value = todayStr();
+    cancelEdit();
 
     msg.textContent = `Saved: ${company} (${spots} spot${spots > 1 ? 's' : ''})`;
     msg.className = 'form-msg ok';
@@ -383,7 +456,7 @@ async function addReservation() {
   }
 
   btn.disabled = false;
-  btn.textContent = '+ Add reservation';
+  btn.textContent = editingId !== null ? 'Save changes' : '+ Add reservation';
 }
 
 async function deleteReservation(id) {
@@ -499,7 +572,11 @@ function renderTable() {
       <td><span class="badge ${bmap[s]}">${s}</span></td>
       <td style="color:var(--txt2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
           title="${r.notes || ''}">${r.notes || ''}</td>
-      <td><button class="del-btn" onclick="deleteReservation(${r.id})">Remove</button></td>
+      <td style="white-space:nowrap">
+        <button class="hist-btn" onclick="openHistory(${r.id})" title="History">${clockSVG}</button>
+        <button class="edit-btn" onclick="editReservation(${r.id})">Edit</button>
+        <button class="del-btn" onclick="deleteReservation(${r.id})">Remove</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -513,6 +590,59 @@ function showView(v) {
   });
   if (v === 'reservations') renderTable();
 }
+
+// ── History (per-record activity) ─────────────
+const clockSVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>`;
+
+function histEscape(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function histActionClass(a) {
+  return ['create','edit','delete','approve','permissions'].includes(a) ? a : 'default';
+}
+function histFmtTime(ts) {
+  if (!ts) return '';
+  const s = /[zZ]$|[+\-]\d\d:?\d\d$/.test(ts) ? ts : ts + 'Z';
+  const d = new Date(s);
+  return isNaN(d) ? ts : d.toLocaleString('en-US',
+    { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' });
+}
+
+async function openHistory(id) {
+  const r = reservations.find(x => x.id === id);
+  document.getElementById('hist-title').textContent =
+    (r ? r.company : ('Reservation #' + id)) + ' — History';
+  const content = document.getElementById('hist-content');
+  content.innerHTML = '<div class="h-empty">Loading…</div>';
+  document.getElementById('hist-modal').classList.add('show');
+
+  try {
+    const res = await fetch(`${API_URL}/api/history/reservation/${id}`);
+    const logs = await res.json();
+    if (!logs.length) {
+      content.innerHTML = '<div class="h-empty">No history recorded for this reservation yet.</div>';
+      return;
+    }
+    content.innerHTML = logs.map(l => `
+      <div class="h-item">
+        <span class="h-badge ${histActionClass(l.action)}">${histEscape(l.action)}</span>
+        <div>
+          <div class="h-detail">${l.detail ? histEscape(l.detail) : histEscape(l.action)}</div>
+          <div class="h-meta">${histFmtTime(l.timestamp)}${l.user ? ' · ' + histEscape(l.user) : ''}${l.source ? ' · ' + histEscape(l.source) : ''}</div>
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    content.innerHTML = '<div class="h-empty">Could not load history — check server connection.</div>';
+  }
+}
+
+function closeHistory() {
+  document.getElementById('hist-modal').classList.remove('show');
+}
+
+document.getElementById('hist-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeHistory();
+});
 
 // ── Init ──────────────────────────────────────
 document.getElementById('hdr-date').textContent =

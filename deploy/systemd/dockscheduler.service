@@ -9,7 +9,9 @@ ExecStart=/opt/soundcheck.tools/DockScheduler/.venv/bin/gunicorn \
     --workers 2 \
     --bind 127.0.0.1:5001 \
     app:app
-Environment="SECRET_KEY=f764818ae0cc0b7deef1c3c8b63b34e47c13ae0eb4fc865c4e34fc81281e3cfb"
+# SECRET_KEY must be IDENTICAL across every Soundcheck service (ADMIN included)
+# so they all verify the same login session and the logger can record who acted.
+Environment="SECRET_KEY=bca5887b84e6d7080497c4d733b742b0911027f0242ebd71bcbd90095be0d019"
 Restart=on-failure
 RestartSec=5
 

@@ -449,6 +449,9 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  // Works at the domain root or behind the /noke prefix (local all-in-one launcher).
+  const API_URL = location.pathname.startsWith('/noke') ? '/noke' : '';
+
   let allContacts = [];
   let selectedContacts = new Set();
   let activeGroup = 'all';
@@ -459,7 +462,7 @@
     const params = new URLSearchParams({ group: activeGroup });
     if (activeCamp) params.set('camp', activeCamp);
 
-    const res = await fetch(`/api/contacts?${params}`);
+    const res = await fetch(`${API_URL}/api/contacts?${params}`);
     allContacts = await res.json();
     selectedContacts.clear();
     renderContacts();
@@ -471,7 +474,7 @@
     for (const g of groups) {
       const params = new URLSearchParams({ group: g });
       if (activeCamp) params.set('camp', activeCamp);
-      const res = await fetch(`/api/contacts?${params}`);
+      const res = await fetch(`${API_URL}/api/contacts?${params}`);
       const data = await res.json();
       document.getElementById(`count-${g}`).textContent = data.length;
     }
@@ -581,7 +584,7 @@
     btn.textContent = 'Sending...';
 
     try {
-      const res = await fetch('/api/send', {
+      const res = await fetch(`${API_URL}/api/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

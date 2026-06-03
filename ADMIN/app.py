@@ -1,10 +1,14 @@
 from flask import Flask, request, jsonify, session, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-import json, os, uuid
+import json, os, uuid, sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Logger'))
+from logger import log_action, get_record_logs
+from identity import SHARED_SECRET, current_user_name
 
 app = Flask(__name__, static_folder='.')
-app.secret_key = 'bca5887b84e6d7080497c4d733b742b0911027f0242ebd71bcbd90095be0d019'
+app.secret_key = SHARED_SECRET
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -100,6 +104,7 @@ def auth_login():
 
     session['user_id'] = user['id']
     session['role'] = user.get('role', 'employee')
+    log_action('login', user=user['name'], source='ADMIN', detail=f"{user['email']} logged in")
 
     return jsonify({'role': user.get('role', 'employee'), 'name': user['name']})
 
@@ -136,12 +141,16 @@ def auth_signup():
 
     data['users'].append(new_user)
     save_users(data)
+    log_action('signup', user=name, source='ADMIN', detail=f'{email} signed up — pending approval')
 
     return jsonify({'message': 'Account created. Awaiting admin approval.'})
 
 
 @app.route('/auth/logout', methods=['POST'])
 def auth_logout():
+    data = load_users()
+    user = next((u for u in data['users'] if u['id'] == session.get('user_id')), None)
+    log_action('logout', user=user['name'] if user else None, source='ADMIN')
     session.clear()
     return jsonify({'message': 'Logged out'})
 
@@ -179,6 +188,9 @@ def update_permissions(user_id):
     user['access'] = access
     user['role'] = 'admin' if access[6] else 'employee'
     save_users(data)
+    log_action('permissions', user=current_user_name(session), source='ADMIN',
+               target_type='user', target_id=user_id,
+               detail=f"Updated permissions for {user['name']}")
     return jsonify({'message': 'Permissions updated'})
 
 
@@ -192,6 +204,9 @@ def approve_user(user_id):
 
     user['approved'] = True
     save_users(data)
+    log_action('approve', user=current_user_name(session), source='ADMIN',
+               target_type='user', target_id=user_id,
+               detail=f"Approved account for {user['name']}")
     return jsonify({'message': 'User approved'})
 
 
@@ -205,7 +220,16 @@ def delete_user(user_id):
 
     data['users'] = [u for u in data['users'] if u['id'] != user_id]
     save_users(data)
+    log_action('delete', user=current_user_name(session), source='ADMIN',
+               target_type='user', target_id=user_id,
+               detail=f"Removed account for {user['name']}")
     return jsonify({'message': 'User removed'})
+
+
+@app.route('/api/history/<target_type>/<target_id>', methods=['GET'])
+@require_admin
+def get_history(target_type, target_id):
+    return jsonify(get_record_logs(target_type, target_id))
 
 
 if __name__ == '__main__':

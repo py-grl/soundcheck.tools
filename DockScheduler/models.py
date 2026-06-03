@@ -16,6 +16,53 @@ CALENDAR_COLORS = [
     '#8bc34a',
 ]
 
+DOCK_COLORS = {
+    '301A': '#e74c3c',
+    '301B': '#e67e22',
+    '301C': '#f39c12',
+    '302':  '#f1c40f',
+    '303':  '#2ecc71',
+    '304':  '#1abc9c',
+    '305A': '#3498db',
+    '305B': '#2980b9',
+    '305C': '#9b59b6',
+    '305D': '#8e44ad',
+    '305E': '#e91e63',
+    '305F': '#c0392b',
+    '306A': '#ff5722',
+    '306B': '#ff9800',
+    '307':  '#cddc39',
+    '308':  '#8bc34a',
+    '309':  '#27ae60',
+    '310':  '#00bcd4',
+    '311':  '#0097a7',
+    '312A': '#5c6bc0',
+    '312B': '#7e57c2',
+    '312C': '#ab47bc',
+    '313':  '#ec407a',
+    '314':  '#ef5350',
+    '315':  '#ff7043',
+    '316':  '#ffa726',
+    '316B': '#ffca28',
+    '317B': '#d4e157',
+    '317':  '#aed581',
+    '318':  '#4db6ac',
+    '319':  '#4fc3f7',
+    '320':  '#42a5f5',
+    '321':  '#5c6bc0',
+    '321B': '#7986cb',
+    '322B': '#ba68c8',
+    '322':  '#f06292',
+    '323':  '#e57373',
+    '324':  '#ff8a65',
+    '325':  '#a1887f',
+    '326':  '#90a4ae',
+    '327':  '#26a69a',
+    '328A': '#66bb6a',
+    '328B': '#9ccc65',
+    '328C': '#26c6da',
+}
+
 DOCK_TYPES = [
     ('semi',     'Semi'),
     ('bus',      'Bus'),
@@ -105,3 +152,17 @@ class CustomMarker(db.Model):
     y          = db.Column(db.Float, nullable=False)
     expires_at = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class Log(db.Model):
+    __tablename__ = 'logs'
+    id          = db.Column(db.Integer, primary_key=True)
+    timestamp   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    action      = db.Column(db.String(50),  nullable=False)   # create, edit, delete, view, login, logout
+    source      = db.Column(db.String(100), nullable=True)    # which app/tool logged this
+    target_type = db.Column(db.String(50),  nullable=True)    # reservation, marker, etc.
+    target_id   = db.Column(db.Integer,     nullable=True)
+    detail      = db.Column(db.Text,        nullable=True)    # human-readable summary
+
+    def __repr__(self):
+        return f'<Log {self.action} {self.target_type}:{self.target_id}>'

@@ -893,3 +893,87 @@ ADD PAGE LAYOUT
 .cal-in-range {
     background-color: rgba(255, 242, 0, 0.15);
 }
+
+/*========
+HISTORY (per-record activity)
+ */
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: 1px solid #333;
+    color: #aaa;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.icon-btn:hover {
+    border-color: #fff200;
+    color: #fff200;
+    box-shadow: 0 0 18px rgba(255, 242, 0, 0.35);
+    transform: translateY(-2px);
+}
+
+.icon-btn svg { display: block; }
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.history-item {
+    display: flex;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid #2a2a2a;
+    align-items: flex-start;
+}
+
+.history-item:last-child { border-bottom: none; }
+
+.history-badge {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 0;
+    border-radius: 3px;
+    width: 92px;
+    text-align: center;
+}
+
+.history-badge.create      { background: #0f3d2e; color: #3ddc91; }
+.history-badge.edit        { background: #3d3a0f; color: #fff200; }
+.history-badge.delete      { background: #3d0f0f; color: #ff6b6b; }
+.history-badge.approve     { background: #14532d; color: #4ade80; }
+.history-badge.permissions { background: #1e2a4d; color: #7aa2ff; }
+.history-badge.default     { background: #2a2a2a; color: #bbbbbb; }
+
+.history-body { flex: 1; min-width: 0; }
+
+.history-detail {
+    color: #dddddd;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.history-meta {
+    color: #777777;
+    font-size: 0.72rem;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.history-empty {
+    color: #777777;
+    padding: 24px 0;
+    text-align: center;
+    font-size: 0.9rem;
+}

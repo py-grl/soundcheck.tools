@@ -1,10 +1,16 @@
-from flask import Flask, render_template, request, flash, redirect, url_for
+from flask import Flask, render_template, request, flash, redirect, url_for, jsonify, session
 from werkzeug.middleware.proxy_fix import ProxyFix
-from models import db, Reservation, CustomMarker, CALENDAR_COLORS, DOCK_TYPES, DOCK_OPTIONS
+from models import db, Reservation, CustomMarker, Log, CALENDAR_COLORS, DOCK_COLORS, DOCK_TYPES, DOCK_OPTIONS
 from datetime import date, time, datetime, timedelta
 from dotenv import load_dotenv
-import calendar
+import sys
 import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Logger'))
+from logger import log_action, get_record_logs
+from identity import SHARED_SECRET, current_user_name
+
+import calendar
 
 
 load_dotenv()
@@ -13,8 +19,9 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dockscheduler.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = os.environ['SECRET_KEY']
+app.secret_key = SHARED_SECRET
 db.init_app(app)
+
 
 with app.app_context():
     db.create_all()
@@ -165,6 +172,9 @@ def all_reservations():
 @app.route('/delete/<int:id>', methods=['POST'])
 def delete_reservation(id):
     reservation = Reservation.query.get_or_404(id)
+    log_action('delete', user=current_user_name(session), source='DockScheduler',
+               target_type='reservation', target_id=id,
+               detail=f'Deleted reservation for {reservation.display_name} on dock {reservation.dock_number}')
     db.session.delete(reservation)
     db.session.commit()
     flash('Reservation deleted.')
@@ -220,6 +230,9 @@ def edit_reservation(id):
             flash('That dock is already booked during that time!')
             return redirect(url_for('edit_reservation', id=id))
 
+        log_action('edit', user=current_user_name(session), source='DockScheduler',
+                   target_type='reservation', target_id=reservation.id,
+                   detail=f'Edited reservation for {reservation.display_name} on dock {reservation.dock_number}')
         db.session.commit()
         flash('Reservation updated!')
         return redirect(url_for('index'))
@@ -288,8 +301,12 @@ def add_reservation():
         )
         db.session.add(new_res)
         db.session.commit()
+        log_action('create', user=current_user_name(session), source='DockScheduler',
+                   target_type='reservation', target_id=new_res.id,
+                   detail=f'Created reservation for {new_res.display_name} on dock {new_res.dock_number}')
         flash('Reservation added!')
         return redirect(url_for('index'))
+
     prefill_date = request.args.get('date', '')
     all_res_json = [
         {
@@ -404,7 +421,7 @@ def monthly(year=None, month=None):
     if month is None:
         month = today.month
 
-    cal        = calendar.monthcalendar(year, month)
+    cal        = calendar.Calendar(firstweekday=6).monthdayscalendar(year, month)
     month_name = calendar.month_name[month]
 
     month_start = date(year, month, 1)
@@ -440,10 +457,15 @@ def monthly(year=None, month=None):
     return render_template('monthly.html',
         cal=cal, month_name=month_name, year=year, month=month,
         res_by_day=res_by_day, res_colors=res_colors,
+        dock_colors=DOCK_COLORS,
         prev_month=prev_month, prev_year=prev_year,
         next_month=next_month, next_year=next_year,
         today=today,
     )
+
+@app.route('/history/<target_type>/<int:target_id>')
+def history(target_type, target_id):
+    return jsonify(get_record_logs(target_type, target_id))
 
 
 if __name__ == '__main__':

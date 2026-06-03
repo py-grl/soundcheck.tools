@@ -1,4 +1,4 @@
-g// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Rock Nashville Parking — Backend Server
 // ─────────────────────────────────────────────
 // This file is the "waiter" between the app and
@@ -10,9 +10,63 @@ const express = require('express');   // web server library
 const Database = require('better-sqlite3'); // SQLite library
 const cors = require('cors');         // allows browsers to talk to this server
 const path = require('path');
+const http = require('http');
+const { logAction, getRecordLogs } = require('./logger');
 
 const app = express();
 const PORT = 3000;
+
+// ── Who is acting? ────────────────────────────
+// The parking app has no login of its own — ADMIN owns the session. To record
+// *who* made a change, we forward the browser's cookie to ADMIN's /api/me,
+// which validates it (ADMIN holds the secret) and returns the logged-in user.
+// ADMIN_URL points at the ADMIN service, on the same VPS by default.
+const ADMIN_URL = process.env.ADMIN_URL || 'http://127.0.0.1:5000';
+
+function resolveUser(req) {
+  // Always resolves (never rejects): returns the user's name, or null if we
+  // can't tell — logging should never break a reservation request.
+  return new Promise((resolve) => {
+    const cookie = req.headers.cookie;
+    if (!cookie) return resolve(null);
+
+    let url;
+    try {
+      url = new URL('/api/me', ADMIN_URL);
+    } catch (e) {
+      return resolve(null);
+    }
+
+    const out = http.request(
+      {
+        hostname: url.hostname,
+        port: url.port || 80,
+        path: url.pathname,
+        method: 'GET',
+        headers: { Cookie: cookie },
+        timeout: 1500,
+      },
+      (resp) => {
+        let body = '';
+        resp.on('data', (chunk) => (body += chunk));
+        resp.on('end', () => {
+          if (resp.statusCode !== 200) return resolve(null);
+          try {
+            resolve(JSON.parse(body).name || null);
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      }
+    );
+    out.on('error', () => resolve(null));
+    out.on('timeout', () => {
+      out.destroy();
+      resolve(null);
+    });
+    out.end();
+  });
+}
 
 // ── Middleware ────────────────────────────────
 // These lines tell Express how to handle incoming
@@ -87,6 +141,29 @@ app.post('/api/reservations', (req, res) => {
   // Send back the newly created reservation (with its new id)
   const newRow = db.prepare('SELECT * FROM reservations WHERE id = ?').get(result.lastInsertRowid);
   res.json(newRow);
+  resolveUser(req).then(user =>
+    logAction('create', { user, source: 'SoundParking', targetType: 'reservation', targetId: newRow.id, detail: `${company} — ${spots} spot(s) starting ${start}` }));
+});
+
+// PUT /api/reservations/:id
+// Updates an existing reservation by its ID.
+app.put('/api/reservations/:id', (req, res) => {
+  const { id } = req.params;
+  const { company, spots, start, end, contact, lease, notes } = req.body;
+
+  if (!company || !spots || !start) {
+    return res.status(400).json({ error: 'Company, spots, and start date are required.' });
+  }
+
+  db.prepare(`
+    UPDATE reservations SET company=?, spots=?, start=?, end=?, contact=?, lease=?, notes=?
+    WHERE id=?
+  `).run(company, spots, start, end || null, contact, lease, notes, id);
+
+  const updated = db.prepare('SELECT * FROM reservations WHERE id = ?').get(id);
+  res.json(updated);
+  resolveUser(req).then(user =>
+    logAction('edit', { user, source: 'SoundParking', targetType: 'reservation', targetId: parseInt(id), detail: `${company} — ${spots} spot(s) starting ${start}` }));
 });
 
 // DELETE /api/reservations/:id
@@ -96,6 +173,16 @@ app.delete('/api/reservations/:id', (req, res) => {
   const { id } = req.params;
   db.prepare('DELETE FROM reservations WHERE id = ?').run(id);
   res.json({ success: true });
+  resolveUser(req).then(user =>
+    logAction('delete', { user, source: 'SoundParking', targetType: 'reservation', targetId: parseInt(id) }));
+});
+
+// GET /api/history/:type/:id
+// Returns the full change history (created/edited/deleted, etc.)
+// for one record, so the app can show a reservation's timeline.
+app.get('/api/history/:type/:id', (req, res) => {
+  const { type, id } = req.params;
+  res.json(getRecordLogs(type, parseInt(id)));
 });
 
 // ── Catch-all ─────────────────────────────────

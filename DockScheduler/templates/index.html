@@ -84,6 +84,16 @@
                               onsubmit="return confirm('Delete this reservation?')">
                             <button type="submit" class="btn btn-danger">Delete</button>
                         </form>
+                        <button type="button" class="icon-btn" title="View history"
+                                onclick="openHistory({{ r.id }})">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 3v5h5"/>
+                                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>
+                                <path d="M12 7v5l4 2"/>
+                            </svg>
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -96,5 +106,74 @@
     </div>
 
 </div>
+
+<div id="history-modal" class="modal-overlay">
+  <div class="modal-box">
+    <h3 id="history-title">History</h3>
+    <div id="history-content"></div>
+    <button type="button" onclick="closeHistory()" class="btn btn-secondary modal-close">Close</button>
+  </div>
+</div>
+
+<script>
+    const HISTORY_URL = "{{ url_for('history', target_type='reservation', target_id=0) }}".replace(/\/0$/, '/');
+    const RES_NAMES = {
+        {% for r in reservations %}"{{ r.id }}": {{ r.display_name|tojson }}{% if not loop.last %},
+        {% endif %}{% endfor %}
+    };
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function actionClass(a) {
+        return ['create','edit','delete','approve','permissions'].includes(a) ? a : 'default';
+    }
+
+    function fmtLogTime(ts) {
+        if (!ts) return '';
+        const s = /[zZ]$|[+\-]\d\d:?\d\d$/.test(ts) ? ts : ts + 'Z';
+        const d = new Date(s);
+        return isNaN(d) ? ts : d.toLocaleString('en-US',
+            {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'});
+    }
+
+    async function openHistory(id) {
+        const modal = document.getElementById('history-modal');
+        document.getElementById('history-title').textContent =
+            (RES_NAMES[id] || ('Reservation #' + id)) + ' — History';
+        const content = document.getElementById('history-content');
+        content.innerHTML = '<p class="history-empty">Loading…</p>';
+        modal.classList.add('active');
+
+        try {
+            const res = await fetch(HISTORY_URL + id);
+            const logs = await res.json();
+            if (!logs.length) {
+                content.innerHTML = '<p class="history-empty">No history recorded for this reservation yet.</p>';
+                return;
+            }
+            content.innerHTML = '<div class="history-list">' + logs.map(l => `
+                <div class="history-item">
+                    <span class="history-badge ${actionClass(l.action)}">${escapeHtml(l.action)}</span>
+                    <div class="history-body">
+                        <div class="history-detail">${l.detail ? escapeHtml(l.detail) : escapeHtml(l.action)}</div>
+                        <div class="history-meta">${fmtLogTime(l.timestamp)}${l.user ? ' · ' + escapeHtml(l.user) : ''}${l.source ? ' · ' + escapeHtml(l.source) : ''}</div>
+                    </div>
+                </div>`).join('') + '</div>';
+        } catch (e) {
+            content.innerHTML = '<p class="history-empty">Could not load history.</p>';
+        }
+    }
+
+    function closeHistory() {
+        document.getElementById('history-modal').classList.remove('active');
+    }
+
+    document.getElementById('history-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeHistory();
+    });
+</script>
 </body>
 </html>

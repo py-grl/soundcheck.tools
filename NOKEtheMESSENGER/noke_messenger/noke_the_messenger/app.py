@@ -1,8 +1,14 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from contacts import load_contacts, get_group
 from messenger import send_sms
+import sys, os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'Logger'))
+from logger import log_action
+from identity import SHARED_SECRET, current_user_name
 
 app = Flask(__name__)
+app.secret_key = SHARED_SECRET
 
 @app.route("/")
 def index():
@@ -38,6 +44,9 @@ def api_send():
             results["sms"].append(result)
 
     success_sms = sum(1 for r in results["sms"] if r["success"])
+
+    log_action('send', user=current_user_name(session), source='NOKEtheMESSENGER',
+               detail=f'SMS sent to {success_sms}/{len(recipients)} recipients')
 
     return jsonify({
         "success": True,

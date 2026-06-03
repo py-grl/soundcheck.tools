@@ -161,6 +161,13 @@
 
 
 <script>
+    // Pre-built URLs so hardcoded paths don't break behind /dockscheduler/ proxy
+    const URLS = {
+        edit:         "{{ url_for('edit_reservation', id=0) }}".replace(/\/0$/, '/'),
+        add:          "{{ url_for('add_reservation') }}",
+        deleteMarker: "{{ url_for('delete_custom_marker', id=0) }}".replace(/\/0$/, '/'),
+    };
+
     function updateTime() {
         const el = document.getElementById('live-time');
         if (!el) return;
@@ -211,9 +218,9 @@
             html = `<p><strong>${dock.name}</strong><br>
                     ${typeLabel}<br>
                     ${timeStr}</p>
-                    <a href="/edit/${dock.resId}" class="btn btn-secondary" style="margin-top:8px; display:inline-block;">Edit</a>`;
+                    <a href="${URLS.edit}${dock.resId}" class="btn btn-secondary" style="margin-top:8px; display:inline-block;">Edit</a>`;
         }
-        html += `<br><a href="/add?date={{ view_date }}" class="btn btn-primary" style="margin-top:12px; display:inline-block;">+ Add Reservation</a>`;
+        html += `<br><a href="${URLS.add}?date={{ view_date }}" class="btn btn-primary" style="margin-top:12px; display:inline-block;">+ Add Reservation</a>`;
 
         document.getElementById('dock-modal-body').innerHTML = html;
         document.getElementById('dock-modal').classList.add('active');
@@ -266,7 +273,7 @@
         document.getElementById('dock-modal-title').textContent = label;
         document.getElementById('dock-modal-body').innerHTML = `
             <p style="color:#aaa; margin-bottom:16px;">Custom marker &mdash; expires ${expires}</p>
-            <form method="POST" action="/custom-marker/delete/${id}">
+            <form method="POST" action="${URLS.deleteMarker}${id}">
                 <input type="hidden" name="date" value="{{ view_date }}">
                 <button type="submit" class="btn btn-danger">Remove Marker</button>
             </form>`;
