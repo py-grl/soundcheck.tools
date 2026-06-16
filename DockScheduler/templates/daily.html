@@ -69,19 +69,21 @@
             <strong>{{ status.label }}</strong><br>
             {% if status.available %}
                 Available
-            {% elif status.reservation.dock_type == 'utility' %}
-                UTILITY<br>Indefinite Block
-            {% elif status.reservation.dock_type == 'closed' %}
-                CLOSED
-            {% elif status.reservation.dock_type == 'overlock' %}
-                OVERLOCKED<br>{{ status.reservation.display_name }}
             {% else %}
-                {{ status.reservation.display_name }}<br>
-                {% if status.reservation.all_day %}All Day
-                {% else %}
-                    {{ status.reservation.start_time.strftime('%I:%M %p') }} –
-                    {{ status.reservation.end_time.strftime('%I:%M %p') }}
-                {% endif %}
+                {% for r in status.reservations %}
+                    {% if r.dock_type == 'utility' %}
+                        UTILITY – Indefinite Block
+                    {% elif r.dock_type == 'closed' %}
+                        CLOSED
+                    {% elif r.dock_type == 'overlock' %}
+                        OVERLOCKED – {{ r.display_name }}
+                    {% else %}
+                        {{ r.display_name }} –
+                        {% if r.all_day %}All Day
+                        {% else %}{{ r.start_time.strftime('%I:%M %p') }}–{{ r.end_time.strftime('%I:%M %p') }}{% endif %}
+                    {% endif %}
+                    {% if not loop.last %}<br>{% endif %}
+                {% endfor %}
             {% endif %}
         </div>
     </div>
@@ -97,19 +99,21 @@
             <strong>{{ status.label }}</strong><br>
             {% if status.available %}
                 Available
-            {% elif status.reservation.dock_type == 'utility' %}
-                UTILITY<br>Indefinite Block
-            {% elif status.reservation.dock_type == 'closed' %}
-                CLOSED
-            {% elif status.reservation.dock_type == 'overlock' %}
-                OVERLOCKED<br>{{ status.reservation.display_name }}
             {% else %}
-                {{ status.reservation.display_name }}<br>
-                {% if status.reservation.all_day %}All Day
-                {% else %}
-                    {{ status.reservation.start_time.strftime('%I:%M %p') }} –
-                    {{ status.reservation.end_time.strftime('%I:%M %p') }}
-                {% endif %}
+                {% for r in status.reservations %}
+                    {% if r.dock_type == 'utility' %}
+                        UTILITY – Indefinite Block
+                    {% elif r.dock_type == 'closed' %}
+                        CLOSED
+                    {% elif r.dock_type == 'overlock' %}
+                        OVERLOCKED – {{ r.display_name }}
+                    {% else %}
+                        {{ r.display_name }} –
+                        {% if r.all_day %}All Day
+                        {% else %}{{ r.start_time.strftime('%I:%M %p') }}–{{ r.end_time.strftime('%I:%M %p') }}{% endif %}
+                    {% endif %}
+                    {% if not loop.last %}<br>{% endif %}
+                {% endfor %}
             {% endif %}
         </div>
     </div>
@@ -184,41 +188,51 @@
     const dockData = {
   {% for dock_num, status in dock_status.items() %}
     "{{ dock_num }}": {
-          label:     "{{ status.label }}",
-          available: {{ 'true' if status.available else 'false' }},
-          {% if not status.available %}
-          resId:     {{ status.reservation.id }},
-          name:      "{{ (status.reservation.display_name or '') | replace('"', '&quot;') }}",
-          type:      "{{ status.reservation.dock_type }}",
-          allDay:    {{ 'true' if status.reservation.all_day else 'false' }},
-          arrival:   "{{ status.reservation.start_time.strftime('%I:%M %p') }}",
-          departure: "{{ status.reservation.end_time.strftime('%I:%M %p') }}",
-          {% endif %}
+          label:        "{{ status.label }}",
+          available:    {{ 'true' if status.available else 'false' }},
+          reservations: [
+          {% for r in status.reservations %}
+            {
+              resId:     {{ r.id }},
+              name:      "{{ (r.display_name or '') | replace('"', '&quot;') }}",
+              type:      "{{ r.dock_type }}",
+              allDay:    {{ 'true' if r.all_day else 'false' }},
+              arrival:   "{{ r.start_time.strftime('%I:%M %p') }}",
+              departure: "{{ r.end_time.strftime('%I:%M %p') }}",
+            },
+          {% endfor %}
+          ],
       },
       {% endfor %}
   };
 
-    function openDockModal(dock_num ) {
+    function openDockModal(dock_num) {
         const dock = dockData[dock_num];
         document.getElementById('dock-modal-title').textContent = 'Dock ' + dock.label;
 
         let html = '';
         if (dock.available) {
             html = '<p style="color:#00ff88">Available</p>';
-        } else if (dock.type === 'utility') {
-            html = '<p>UTILITY - Indefinite Block</p>';
-        } else if (dock.type === 'closed') {
-            html = '<p>CLOSED</p>';
         } else {
-            const timeStr = dock.allDay ? 'All Day' : dock.arrival + '-' + dock.departure;
-            const typeLabel = {
+            const typeLabels = {
                 semi: 'Semi', bus: 'Bus', boxtruck: 'Box Truck',
-                trailer: 'Trailer', other: 'Other', overlock: 'Overlock'
-            }[dock.type] || dock.type;
-            html = `<p><strong>${dock.name}</strong><br>
-                    ${typeLabel}<br>
-                    ${timeStr}</p>
-                    <a href="${URLS.edit}${dock.resId}" class="btn btn-secondary" style="margin-top:8px; display:inline-block;">Edit</a>`;
+                trailer: 'Trailer', other: 'Other', overlock: 'Overlock',
+                closed: 'Closed', utility: 'Utility'
+            };
+            html = dock.reservations.map(function (r) {
+                let body;
+                if (r.type === 'utility') {
+                    body = '<strong>UTILITY</strong><br>Indefinite Block';
+                } else if (r.type === 'closed') {
+                    body = '<strong>CLOSED</strong>';
+                } else {
+                    const timeStr = r.allDay ? 'All Day' : r.arrival + '-' + r.departure;
+                    const typeLabel = typeLabels[r.type] || r.type;
+                    body = `<strong>${r.name}</strong><br>${typeLabel}<br>${timeStr}`;
+                }
+                return `<div class="modal-res">${body}<br>
+                        <a href="${URLS.edit}${r.resId}" class="btn btn-secondary" style="margin-top:8px; display:inline-block;">Edit</a></div>`;
+            }).join('<hr style="border-color:#333; margin:14px 0;">');
         }
         html += `<br><a href="${URLS.add}?date={{ view_date }}" class="btn btn-primary" style="margin-top:12px; display:inline-block;">+ Add Reservation</a>`;
 

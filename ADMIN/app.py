@@ -7,7 +7,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Logger'))
 from logger import log_action, get_record_logs
 from identity import SHARED_SECRET, current_user_name
 
-app = Flask(__name__, static_folder='.')
+# static_folder=None: do NOT auto-serve this directory. static_folder='.' makes
+# Flask register a `/./<path:filename>` route that serves ANY file here to anyone
+# with no auth — leaking users.json (password hashes), app.py (the secret key),
+# and ADMIN.html itself, bypassing require_admin. Pages are served via explicit
+# routes below (send_from_directory works without a configured static folder).
+app = Flask(__name__, static_folder=None)
 app.secret_key = SHARED_SECRET
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -30,6 +35,64 @@ def load_users():
 def save_users(data):
     with open(USERS_FILE, 'w') as f:
         json.dump(data, f, indent=2)
+
+
+# ── One-time admin reconciliation ───────────────────────────────────────────────
+# When the Admin permission moved from access index 6 to 8 (Sharepoint + Community
+# were inserted), some older records kept a stale role='admin' while their Admin
+# checkbox (now index 8) read unchecked — so people who shouldn't be admins could
+# still open /admin. This pass runs ONCE to make the data authoritative: only the
+# names below may be admins; everyone else is reset to employee. It pads legacy
+# 7-slot access arrays to 9, then sets a flag so it never runs again — leaving your
+# normal checkbox/Push permission changes untouched from here on.
+ADMIN_INDEX = 8          # "Admin" slot in the 9-element access array (see index.html)
+ACCESS_LEN = 9
+# Authoritative admin allowlist, matched on display name (case/whitespace-insensitive).
+ADMIN_NAMES = {'caleb rose', 'kindal jumper', 'jackie herrman'}
+
+
+def _norm_name(name):
+    return ' '.join((name or '').split()).lower()
+
+
+def reconcile_admins():
+    data = load_users()
+    if data.get('admins_reconciled'):
+        return  # already done — don't clobber later UI promotions
+
+    # Safety: keep a copy of the pre-reconcile file before we rewrite it.
+    backup = USERS_FILE + '.pre-reconcile.bak'
+    if not os.path.exists(backup):
+        with open(USERS_FILE, 'r') as src, open(backup, 'w') as dst:
+            dst.write(src.read())
+
+    changes = []
+    for u in data['users']:
+        access = list(u.get('access') or [])
+        if len(access) < ACCESS_LEN:                       # legacy (pre-9) array
+            access += [False] * (ACCESS_LEN - len(access))
+            # A pre-9 array predates Sharepoint (idx 6) and Community (idx 7), and
+            # its old idx-6 value was the Admin bit. Those slots are misaligned in
+            # the new layout, so clear them — a legit Sharepoint/Community grant can
+            # only exist in a full 9-slot array. Admin (idx 8) is set from the list.
+            access[6] = False
+            access[7] = False
+        should_be_admin = _norm_name(u.get('name')) in ADMIN_NAMES
+        new_role = 'admin' if should_be_admin else 'employee'
+        if access[ADMIN_INDEX] != should_be_admin or u.get('role') != new_role:
+            changes.append(f"{u.get('name')!r}: role {u.get('role')!r}->{new_role!r}, "
+                           f"admin-bit {access[ADMIN_INDEX]}->{should_be_admin}")
+        access[ADMIN_INDEX] = should_be_admin
+        u['access'] = access
+        u['role'] = new_role
+
+    data['admins_reconciled'] = True
+    save_users(data)
+    print(f"[admin reconcile] {len(data['users'])} users checked; "
+          f"changes: {changes or 'none'}", file=sys.stderr)
+
+
+reconcile_admins()
 
 
 def require_auth(f):
@@ -106,7 +169,7 @@ def auth_login():
     session['role'] = user.get('role', 'employee')
     log_action('login', user=user['name'], source='ADMIN', detail=f"{user['email']} logged in")
 
-    return jsonify({'role': user.get('role', 'employee'), 'name': user['name']})
+    return jsonify({'role': user.get('role', 'employee'), 'name': user['name'], 'access': user.get('access', [])})
 
 
 @app.route('/auth/signup', methods=['POST'])
@@ -132,10 +195,11 @@ def auth_signup():
         'email': email,
         'password_hash': generate_password_hash(password),
         'role': 'employee',
-        'color': color_pair[0],
+        'color':
+        color_pair[0],
         'text': color_pair[1],
         'initials': initials,
-        'access': [False, False, False, False, False, False, False],
+        'access': [False, False, False, False, False, False, False, False, False],
         'approved': False
     }
 
@@ -177,8 +241,8 @@ def update_permissions(user_id):
     body = request.get_json()
     access = body.get('access')
 
-    if not isinstance(access, list) or len(access) != 7:
-        return jsonify({'error': 'Invalid access array — must be 7 booleans'}), 400
+    if not isinstance(access, list) or len(access) != 9:
+        return jsonify({'error': 'Invalid access array — must be 9 booleans'}), 400
 
     data = load_users()
     user = next((u for u in data['users'] if u['id'] == user_id), None)
@@ -186,7 +250,7 @@ def update_permissions(user_id):
         return jsonify({'error': 'User not found'}), 404
 
     user['access'] = access
-    user['role'] = 'admin' if access[6] else 'employee'
+    user['role'] = 'admin' if access[8] else 'employee'
     save_users(data)
     log_action('permissions', user=current_user_name(session), source='ADMIN',
                target_type='user', target_id=user_id,

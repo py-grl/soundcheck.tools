@@ -3,6 +3,7 @@
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='scheduler_in_style.css') }}">
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Dock Scheduler — Reservations</title>
 </head>
 <body>
@@ -67,16 +68,16 @@
             <tbody>
             {% for r in reservations %}
             <tr>
-                <td>{{ r.company or '—' }}</td>
-                <td>{{ r.name or '—' }}</td>
-                <td>{{ r.dock_number }}</td>
-                <td>{{ r.dock_type }}</td>
-                <td>{{ r.start_date }}</td>
-                <td>{% if r.end_date.year == 9999 %}Indefinite{% else %}{{ r.end_date }}{% endif %}</td>
-                <td>{% if r.all_day %}All Day{% else %}{{ r.start_time.strftime('%I:%M %p') }}{% endif %}</td>
-                <td>{% if r.all_day %}All Day{% else %}{{ r.end_time.strftime('%I:%M %p') }}{% endif %}</td>
-                <td>{{ r.notes or '—' }}</td>
-                <td>
+                <td data-label="Company / Artist">{{ r.company or '—' }}</td>
+                <td data-label="Contact">{{ r.name or '—' }}</td>
+                <td data-label="Dock(s)">{{ r.dock_number }}</td>
+                <td data-label="Type">{{ r.dock_type }}</td>
+                <td data-label="Start Date">{{ r.start_date }}</td>
+                <td data-label="End Date">{% if r.end_date.year == 9999 %}Indefinite{% else %}{{ r.end_date }}{% endif %}</td>
+                <td data-label="Arrival">{% if r.all_day %}All Day{% else %}{{ r.start_time.strftime('%I:%M %p') }}{% endif %}</td>
+                <td data-label="Departure">{% if r.all_day %}All Day{% else %}{{ r.end_time.strftime('%I:%M %p') }}{% endif %}</td>
+                <td data-label="Notes">{{ r.notes or '—' }}</td>
+                <td data-label="Actions">
                     <div class="action-links">
                         <a href="{{ url_for('edit_reservation', id=r.id) }}" class="btn btn-secondary">Edit</a>
                         <form method="POST" action="{{ url_for('delete_reservation', id=r.id) }}"

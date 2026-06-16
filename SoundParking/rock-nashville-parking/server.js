@@ -16,16 +16,24 @@ const { logAction, getRecordLogs } = require('./logger');
 const app = express();
 const PORT = 3000;
 
-// ── Who is acting? ────────────────────────────
-// The parking app has no login of its own — ADMIN owns the session. To record
-// *who* made a change, we forward the browser's cookie to ADMIN's /api/me,
-// which validates it (ADMIN holds the secret) and returns the logged-in user.
-// ADMIN_URL points at the ADMIN service, on the same VPS by default.
+// ── Who is acting? & access control ───────────
+// Parking has no login of its own — ADMIN owns the session and holds the secret.
+// We forward the browser's cookie to ADMIN's /api/me, which validates it and
+// returns the logged-in user ({name, role, access}). We use that both to record
+// *who* made a change AND to gate access: only logged-in users granted "Parking"
+// may use this app. ADMIN_URL points at the ADMIN service, same VPS by default.
 const ADMIN_URL = process.env.ADMIN_URL || 'http://127.0.0.1:5000';
 
-function resolveUser(req) {
-  // Always resolves (never rejects): returns the user's name, or null if we
-  // can't tell — logging should never break a reservation request.
+// "Parking" is access index 4 in ADMIN's permissions array (see index.html).
+const PARKING_ACCESS_INDEX = 4;
+
+// Where to bounce visitors who aren't logged in. In production every tool shares
+// the soundcheck.tools domain, so the site root serves ADMIN's login page.
+const LOGIN_URL = process.env.LOGIN_URL || '/';
+
+// Ask ADMIN who this request belongs to. Always resolves (never rejects): the
+// /api/me object ({name, role, access}), or null when not logged in / unreachable.
+function fetchIdentity(req) {
   return new Promise((resolve) => {
     const cookie = req.headers.cookie;
     if (!cookie) return resolve(null);
@@ -52,7 +60,7 @@ function resolveUser(req) {
         resp.on('end', () => {
           if (resp.statusCode !== 200) return resolve(null);
           try {
-            resolve(JSON.parse(body).name || null);
+            resolve(JSON.parse(body));
           } catch (e) {
             resolve(null);
           }
@@ -68,12 +76,35 @@ function resolveUser(req) {
   });
 }
 
+// Gate EVERY request: require a logged-in user who's been granted Parking.
+// Page loads bounce to the login page; API calls get a clean 401/403.
+async function requireParkingAccess(req, res, next) {
+  const me = await fetchIdentity(req);
+  const isApi = req.path.startsWith('/api/');
+  if (!me) {
+    return isApi ? res.status(401).json({ error: 'Not logged in.' }) : res.redirect(LOGIN_URL);
+  }
+  const access = me.access || [];
+  if (!access[PARKING_ACCESS_INDEX]) {
+    return isApi ? res.status(403).json({ error: 'No access to Parking.' }) : res.redirect(LOGIN_URL);
+  }
+  req.parkingUser = me; // stash so handlers can log who acted without re-asking ADMIN
+  next();
+}
+
+// Name of the user behind this request (for logging), or null. Reuses the
+// identity the gate already fetched, so there's no second round-trip.
+function resolveUser(req) {
+  return Promise.resolve((req.parkingUser && req.parkingUser.name) || null);
+}
+
 // ── Middleware ────────────────────────────────
 // These lines tell Express how to handle incoming
 // requests before they reach our routes.
 
 app.use(cors());                          // allow cross-origin requests
 app.use(express.json());                  // parse JSON request bodies
+app.use(requireParkingAccess);            // everything below requires a logged-in Parking user
 app.use(express.static('public'));        // serve the index.html from /public
 
 // ── Database setup ────────────────────────────

@@ -285,6 +285,73 @@ tr:hover td {
 .action-links {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Compact the action buttons so the Actions column doesn't dominate the row */
+.action-links .btn {
+    padding: 8px 14px;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+}
+
+.action-links .icon-btn {
+    width: 38px;
+    height: 38px;
+}
+
+/*================
+RESPONSIVE TABLE -> CARDS (no horizontal scrolling on small screens)
+ */
+@media (max-width: 1024px) {
+    .table-wrapper { overflow-x: visible; }
+
+    table, tbody, tr, td { display: block; width: 100%; }
+    thead { display: none; }            /* labels come from each cell's data-label */
+
+    tr {
+        background: #161616;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        padding: 4px 16px;
+    }
+
+    tr:hover td { background: transparent; }
+
+    td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        text-align: right;
+        padding: 11px 0;
+        border-bottom: 1px solid #242424;
+    }
+
+    td:last-child { border-bottom: none; }
+
+    td::before {
+        content: attr(data-label);
+        flex-shrink: 0;
+        text-align: left;
+        color: #fff200;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .action-links { justify-content: flex-end; }
+
+    .header { flex-wrap: wrap; gap: 16px; }
+}
+
+@media (max-width: 520px) {
+    .page-wrapper { padding: 24px 16px; }
+    h1 { font-size: 1.6rem; }
+    .header { padding: 16px 0; margin-bottom: 24px; }
+    .header .btn { width: 100%; text-align: center; }
 }
 
 /*================
@@ -905,8 +972,8 @@ HISTORY (per-record activity)
     width: 44px;
     height: 44px;
     background: transparent;
-    border: 1px solid #333;
-    color: #aaa;
+    border: 1px solid #fff200;
+    color: #fff200;
     cursor: pointer;
     flex-shrink: 0;
     transition: border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;

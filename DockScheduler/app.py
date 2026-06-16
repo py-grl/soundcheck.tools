@@ -8,7 +8,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Logger'))
 from logger import log_action, get_record_logs
-from identity import SHARED_SECRET, current_user_name
+from identity import SHARED_SECRET, current_user_name, current_user
 
 import calendar
 
@@ -21,6 +21,36 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dockscheduler.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = SHARED_SECRET
 db.init_app(app)
+
+
+# ── Auth gate ───────────────────────────────────────────────────────────────────
+# DockScheduler has no login of its own — ADMIN owns login and signs the session
+# cookie with the shared SECRET_KEY. Because we set the same secret above, we can
+# read that session and require the visitor be a logged-in, approved user who's
+# been granted Dock Scheduler before they touch ANY route.
+
+# "Dock Scheduler" is access index 1 in ADMIN's permissions array (see index.html).
+DOCK_ACCESS_INDEX = 1
+
+# Where to send visitors who aren't logged in. In production every tool shares the
+# soundcheck.tools domain, so the site root serves ADMIN's login page. Override with
+# LOGIN_URL when running standalone (e.g. http://localhost:5000/ in dev).
+LOGIN_URL = os.environ.get('LOGIN_URL', '/')
+
+
+@app.before_request
+def require_dock_access():
+    # Let static assets (CSS/JS) through; everything else needs a valid session.
+    if request.endpoint == 'static':
+        return None
+    user = current_user(session)
+    if not user or not user.get('approved'):
+        return redirect(LOGIN_URL)
+    access = user.get('access') or []
+    if len(access) <= DOCK_ACCESS_INDEX or not access[DOCK_ACCESS_INDEX]:
+        # Logged in but not granted Dock Scheduler — send back to the hub.
+        return redirect(LOGIN_URL)
+    return None
 
 
 with app.app_context():
@@ -50,6 +80,51 @@ with app.app_context():
             conn.commit()
         except Exception:
             pass
+        # Legacy tables created name/company/email as NOT NULL, but the model now
+        # treats them as optional (display_name falls back company->name->default and
+        # the forms submit None when blank). SQLite can't relax a column constraint in
+        # place, so rebuild the table once if company is still marked NOT NULL.
+        try:
+            cols = conn.execute(db.text('PRAGMA table_info(reservations)')).fetchall()
+            company_required = any(c[1] == 'company' and c[3] == 1 for c in cols)
+            if company_required:
+                conn.execute(db.text('DROP TABLE IF EXISTS reservations_new'))
+                conn.execute(db.text('''
+                    CREATE TABLE reservations_new (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        name VARCHAR(100),
+                        company VARCHAR(100),
+                        email VARCHAR(100),
+                        dock_number VARCHAR(200) NOT NULL,
+                        dock_type VARCHAR(100) NOT NULL,
+                        start_time DATETIME NOT NULL,
+                        end_time DATETIME NOT NULL,
+                        created_at DATETIME NOT NULL,
+                        notes TEXT,
+                        start_date DATE,
+                        end_date DATE,
+                        all_day BOOLEAN NOT NULL DEFAULT 0
+                    )
+                '''))
+                conn.execute(db.text('''
+                    INSERT INTO reservations_new
+                        (id, name, company, email, dock_number, dock_type,
+                         start_time, end_time, created_at, notes,
+                         start_date, end_date, all_day)
+                    SELECT id, name, company, email, dock_number, dock_type,
+                           start_time, end_time, created_at, notes,
+                           start_date, end_date, all_day
+                    FROM reservations
+                '''))
+                conn.execute(db.text('DROP TABLE reservations'))
+                conn.execute(db.text('ALTER TABLE reservations_new RENAME TO reservations'))
+                conn.commit()
+        except Exception:
+            conn.rollback()
+
+
+# Minimum gap (minutes) required around a booking on the same dock, before and after.
+BOOKING_BUFFER_MINUTES = 30
 
 
 ALL_DOCKS = [
@@ -120,6 +195,53 @@ H_COORDS = [
 ]
 V_DOCKS = [d['number'] for d in ALL_DOCKS[:19]]
 H_DOCKS = [d['number'] for d in ALL_DOCKS[19:]]
+
+
+class FormError(Exception):
+    """A user-fixable problem with submitted form data (carries a friendly message)."""
+
+
+def _parse_dates_times(form, dock_type):
+    """Resolve (start_date, end_date, start_time, end_time, all_day) from an
+    add/edit form. Raises FormError with a user-friendly message when a required
+    field is missing or malformed, so the route can flash it instead of 500ing.
+    """
+    all_day = 'all_day' in form
+
+    start_raw = form.get('start_date', '').strip()
+    if not start_raw:
+        raise FormError('Please select a start date.')
+    try:
+        start_date = date.fromisoformat(start_raw)
+    except ValueError:
+        raise FormError("That start date isn't valid.")
+
+    if dock_type == 'utility':
+        return start_date, date(9999, 12, 31), time(0, 0), time(23, 59), True
+
+    end_raw = form.get('end_date', '').strip()
+    if not end_raw:
+        raise FormError('Please select an end date.')
+    try:
+        end_date = date.fromisoformat(end_raw)
+    except ValueError:
+        raise FormError("That end date isn't valid.")
+    if end_date < start_date:
+        raise FormError("End date can't be before the start date.")
+
+    if all_day:
+        return start_date, end_date, time(0, 0), time(23, 59), True
+
+    start_time_raw = form.get('start_time', '').strip()
+    end_time_raw   = form.get('end_time', '').strip()
+    if not start_time_raw or not end_time_raw:
+        raise FormError('Please choose an arrival and departure time, or check All Day.')
+    try:
+        start_time = time.fromisoformat(start_time_raw)
+        end_time   = time.fromisoformat(end_time_raw)
+    except ValueError:
+        raise FormError("Those times aren't valid.")
+    return start_date, end_date, start_time, end_time, False
 
 
 @app.route('/')
@@ -198,25 +320,14 @@ def edit_reservation(id):
 
         dock_type = request.form['dock_type']
         reservation.dock_type = dock_type
-        all_day = 'all_day' in request.form
 
-        reservation.start_date = date.fromisoformat(request.form['start_date'])
-
-        if dock_type == 'utility':
-            reservation.end_date   = date(9999, 12, 31)
-            reservation.start_time = time(0, 0)
-            reservation.end_time   = time(23, 59)
-            reservation.all_day    = True
-        else:
-            reservation.end_date = date.fromisoformat(request.form['end_date'])
-            if all_day:
-                reservation.start_time = time(0, 0)
-                reservation.end_time   = time(23, 59)
-                reservation.all_day    = True
-            else:
-                reservation.start_time = time.fromisoformat(request.form['start_time'])
-                reservation.end_time   = time.fromisoformat(request.form['end_time'])
-                reservation.all_day    = False
+        try:
+            (reservation.start_date, reservation.end_date,
+             reservation.start_time, reservation.end_time,
+             reservation.all_day) = _parse_dates_times(request.form, dock_type)
+        except FormError as e:
+            flash(str(e))
+            return redirect(url_for('edit_reservation', id=id))
 
         reservation.notes = request.form.get('notes', '')
 
@@ -224,10 +335,11 @@ def edit_reservation(id):
             reservation.dock_numbers,
             reservation.start_date, reservation.end_date,
             reservation.start_time, reservation.end_time,
+            leeway_minutes=BOOKING_BUFFER_MINUTES,
             exclude_id=reservation.id
         )
         if conflict:
-            flash('That dock is already booked during that time!')
+            flash('That dock is already booked then — a 30-minute gap is required before and after each booking.')
             return redirect(url_for('edit_reservation', id=id))
 
         log_action('edit', user=current_user_name(session), source='DockScheduler',
@@ -250,7 +362,6 @@ def edit_reservation(id):
                            dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS,
                            all_res_json=all_res_json)
 
-
 @app.route('/add', methods=['GET', 'POST'])
 def add_reservation():
     if request.method == 'POST':
@@ -265,32 +376,23 @@ def add_reservation():
         dock_number = ','.join(dock_numbers)
 
         dock_type = request.form['dock_type']
-        all_day   = 'all_day' in request.form
 
-        start_date = date.fromisoformat(request.form['start_date'])
-
-        if dock_type == 'utility':
-            end_date   = date(9999, 12, 31)
-            start_time = time(0, 0)
-            end_time   = time(23, 59)
-            all_day    = True
-        else:
-            end_date = date.fromisoformat(request.form['end_date'])
-            if all_day:
-                start_time = time(0, 0)
-                end_time   = time(23, 59)
-            else:
-                start_time = time.fromisoformat(request.form['start_time'])
-                end_time   = time.fromisoformat(request.form['end_time'])
+        try:
+            start_date, end_date, start_time, end_time, all_day = \
+                _parse_dates_times(request.form, dock_type)
+        except FormError as e:
+            flash(str(e))
+            return redirect(url_for('add_reservation'))
 
         notes = request.form.get('notes', '')
 
         conflict = Reservation.has_conflict(
             [d.strip() for d in dock_number.split(',')],
-            start_date, end_date, start_time, end_time
+            start_date, end_date, start_time, end_time,
+            leeway_minutes=BOOKING_BUFFER_MINUTES
         )
         if conflict:
-            flash('That dock is already booked during that time!')
+            flash('That dock is already booked then — a 30-minute gap is required before and after each booking.')
             return redirect(url_for('add_reservation'))
 
         new_res = Reservation(
@@ -332,10 +434,10 @@ def daily_view():
     else:
         view_date = date.today()
 
-    today    = date.today()
-    now_time = datetime.now().time()
-    now_dt   = datetime.combine(today, now_time)
+    today = date.today()
 
+    # Every reservation overlapping this day — the same window the index uses, so
+    # the live view mirrors the reservation list exactly (no "active right now" filter).
     reservations = Reservation.query.filter(
         Reservation.start_date <= view_date,
         Reservation.end_date   >= view_date
@@ -345,29 +447,13 @@ def daily_view():
     for dock in ALL_DOCKS:
         dock_num = dock['number']
         dock_res = [r for r in reservations if dock_num in r.dock_numbers]
-
-        currently_booked = None
-        for r in dock_res:
-            if r.dock_type in ('utility', 'closed', 'overlock'):
-                currently_booked = r
-                break
-            if r.all_day:
-                currently_booked = r
-                break
-            if view_date == today:
-                start_dt = datetime.combine(view_date, r.start_time) - timedelta(minutes=45)
-                end_dt   = datetime.combine(view_date, r.end_time)   + timedelta(minutes=20)
-                if start_dt <= now_dt <= end_dt:
-                    currently_booked = r
-                    break
-            else:
-                currently_booked = r
-                break
+        # All-day/utility (00:00) float to the top, then chronological by start time.
+        dock_res.sort(key=lambda r: (r.start_time, r.end_time))
 
         dock_status[dock_num] = {
-            'label':       dock['label'],
-            'available':   currently_booked is None,
-            'reservation': currently_booked,
+            'label':        dock['label'],
+            'available':    not dock_res,
+            'reservations': dock_res,
         }
 
     prev_date = view_date - timedelta(days=1)
@@ -384,7 +470,6 @@ def daily_view():
         h_docks_coords=h_docks_coords,
         today=today,
         view_date=view_date,
-        now=now_time,
         prev_date=prev_date,
         next_date=next_date,
         custom_markers=custom_markers,
