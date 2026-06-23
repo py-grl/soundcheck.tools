@@ -127,8 +127,16 @@ class Reservation(db.Model):
             dock_numbers = [d.strip() for d in dock_numbers.split(',')]
         dock_set = set(dock_numbers)
         leeway = timedelta(minutes=leeway_minutes)
-        new_start = dt.combine(start_date, start_time) - leeway
-        new_end   = dt.combine(end_date,   end_time)   + leeway
+        # Clamp at the datetime bounds: utility docks use a year-9999 sentinel
+        # end, and adding the booking buffer to it would overflow datetime.max.
+        try:
+            new_start = dt.combine(start_date, start_time) - leeway
+        except OverflowError:
+            new_start = dt.min
+        try:
+            new_end = dt.combine(end_date, end_time) + leeway
+        except OverflowError:
+            new_end = dt.max
 
         query = Reservation.query
         if exclude_id:
