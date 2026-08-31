@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='tools.css') }}">
+    <title>Rock Nashville Lockers</title>
+
+</head>
+<body>
+<div class="header">
+    <h1>Rock Nashville Lockers</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('download_current') }}" class="past-months-btn">Download XLSX</a>
+        <a href="{{ url_for('past_months') }}" class="past-months-btn">Past Months</a>
+    </div>
+</div>
+<p>Found {{ units|length }} rentable units 🔒
+    <input type="text" id="search" placeholder="Search lockers, artists, emails..."
+           style="max-width: 360px; margin: 12px 0;">
+{% if updated_at %}<span style="color:#888"> · updated {{ updated_at.strftime('%I:%M %p').lstrip('0') }}</span>{% endif %}
+</p>
+
+ <table border="1" cellpadding="6">
+     <thead>
+      <tr>
+          <th>Locker</th>
+          <th>Client</th>
+          <th>Size</th>
+          <th>Price</th>
+          <th>Sign Lease</th>
+          <th>Billing Entity</th>
+          <th>Artist Name</th>
+          <th>Billing Email</th>
+          <th>PC Email</th>
+          <th>Primary Contact</th>
+          <th>Number</th>
+          <th>Shared Users</th>
+          <th>Shared User Numbers</th>
+      </tr>
+     </thead>
+     <tbody id="rows">
+  {% for unit in units %}
+      <tr>
+          <td>{{ unit.unit_id }}</td>
+          <td>{{ unit.locker["Client"] }}</td>
+          <td>{{ unit.locker["Size"] }}</td>
+          <td>{{ unit.locker["PRICE"] }}</td>
+          <td>{{ unit.locker["Sign Lease"] }}</td>
+          <td>{{ unit.locker["Billng Entity"] }}</td>
+          <td>{{ unit.artist_name }}</td>
+          <td>{{ unit.locker["Email"] }}</td>
+          <td>{{ unit.email }}</td>
+          <td>{{ unit.first_name }} {{ unit.last_name }}</td>
+          <td>{{ unit.phone }}</td>
+          <td>
+              {% for su in unit.shared_users %}
+                  {{ su.first_name }} {{ su.last_name }}{% if not
+  loop.last %}, {% endif %}
+              {% endfor %}
+          </td>
+          <td>
+              {% for su in unit.shared_users %}
+                  {{ su.phone }}{% if not loop.last %}, {% endif %}
+              {% endfor %}
+          </td>
+      </tr>
+  {% endfor %}
+     </tbody>
+  </table>
+
+<script>
+    const box = document.getElementById("search");
+    const rows = document.querySelectorAll('#rows tr');
+    box.addEventListener('input', () => {
+        const q = box.value.toLowerCase();
+        rows.forEach(tr => {
+            tr.style.display = tr.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+
+
+</script>
+
+</body>
+</html>

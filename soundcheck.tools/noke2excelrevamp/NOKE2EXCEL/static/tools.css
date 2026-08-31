@@ -1,0 +1,226 @@
+/* ==========================
+BASE
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap');
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #111111;
+    color: #ffffff;
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+}
+
+a {
+    color: #fff200;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+h1, h2, h3 {
+    color: #fff200;
+    font-weight: 800;
+}
+
+h1 {
+    font-size: 2rem;
+}
+
+h2 {
+    font-size: 1vw;
+    color: #fff200;
+}
+
+h3 {
+    font-size: 1vw;
+    color: #aaaaaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1rem;
+}
+
+/*=============
+LAYOUT
+ */
+.page-wrapper {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 0;
+    border-bottom: 1px solid #fff200;
+    margin-bottom: 32px;
+}
+
+
+
+/*========
+BUTTONS
+ */
+.past-months-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 38px;
+    padding: 0 16px;
+    background-color: #111111;
+    border: 1px solid #9a9797;
+    border-radius: 10px;
+    color: #fff200;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.past-months-btn:hover {
+    text-decoration: none;
+    border-color: #fff200;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-right: 22px;   /* nudge the buttons left, off the right edge */
+}
+
+.spread-list {
+    list-style: none;
+    margin: 24px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 360px;
+}
+
+.spread-list a {
+    display: block;
+    padding: 12px 16px;
+    border: 1px solid #9a9797;
+    border-radius: 10px;
+    transition: 0.2s;
+}
+
+.spread-list a:hover {
+    text-decoration: none;
+    border-color: #fff200;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+    width: 100%;
+    background-color: #111111;
+    border: 1px solid #dad7d7;
+    color: #ffffff;
+    padding: 10px 14px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: 0.2s;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #fff200;
+}
+
+select option {
+    background-color: #1a1a1a;
+}
+
+/*========
+TABLE
+ */
+
+.table-wrapper {
+    overflow-x: auto;
+    margin: 24px 0;
+}
+
+table {
+    width: 50%;
+    border-collapse: collapse;
+    font-size: .69vw;
+}
+
+thead tr {
+    border-bottom: 1px solid #fff200;
+}
+
+th {
+    text-align: left;
+    padding: 5px 8px;
+    font-size: 0.75vw;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #fff200;
+    font-weight: 700;
+}
+
+td {
+    padding: 5px 10px;
+    border-bottom: 1px solid #fafafa;
+    color: #dddddd;
+}
+
+tr {
+    color: #ffffff;
+}
+
+.action-links {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 520px) {
+    .page-wrapper { padding: 24px 16px; }
+    h1 { font-size: 1.6vw; }
+    .header { padding: 16px 0; margin-bottom: 24px; }
+    .header .btn { width: 100%; text-align: center; }
+}
+
+/*========
+LOGO WATERMARK
+ */
+/* Faint Rock Nashville / Soundcheck logo behind everything. A fixed pseudo-
+   element (not opacity on <body>) so only the logo fades, never the text.
+   url() is relative to THIS css file, so it resolves to static/images/... even
+   under the /lockers prefix. Bump opacity up/down to taste. */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: url("images/Circle_Empty_BW.png") center 60% no-repeat;
+    background-size: min(70vw, 80vh);
+    opacity: 0.05;
+    filter: invert(1);   /* logo art is black — invert to white so it shows on the dark bg */
+    z-index: -1;
+    pointer-events: none;
+}

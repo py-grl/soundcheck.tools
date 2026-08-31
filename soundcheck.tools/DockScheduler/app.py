@@ -1,0 +1,577 @@
+import os
+import sys
+from datetime import date, time, timedelta
+
+from dotenv import load_dotenv
+from flask import (
+    Flask,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from models import (
+    CALENDAR_COLORS,
+    DOCK_COLORS,
+    DOCK_OPTIONS,
+    DOCK_TYPES,
+    CustomMarker,
+    Reservation,
+    db,
+)
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Logger'))
+import calendar
+
+from identity import SHARED_SECRET, current_user, current_user_name
+
+from logger import get_record_logs, log_action
+
+load_dotenv()
+
+app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dockscheduler.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = SHARED_SECRET
+db.init_app(app)
+
+
+# ── Auth gate ───────────────────────────────────────────────────────────────────
+# DockScheduler has no login of its own — ADMIN owns login and signs the session
+# cookie with the shared SECRET_KEY. Because we set the same secret above, we can
+# read that session and require the visitor be a logged-in, approved user who's
+# been granted Dock Scheduler before they touch ANY route.
+
+# "Dock Scheduler" is access index 1 in ADMIN's permissions array (see index.html).
+DOCK_ACCESS_INDEX = 1
+
+# Where to send visitors who aren't logged in. In production every tool shares the
+# soundcheck.tools domain, so the site root serves ADMIN's login page. Override with
+# LOGIN_URL when running standalone (e.g. http://localhost:5000/ in dev).
+LOGIN_URL = os.environ.get('LOGIN_URL', '/')
+
+
+@app.before_request
+def require_dock_access():
+    # Let static assets (CSS/JS) through; everything else needs a valid session.
+    if request.endpoint == 'static':
+        return None
+    user = current_user(session)
+    if not user or not user.get('approved'):
+        return redirect(LOGIN_URL)
+    access = user.get('access') or []
+    if len(access) <= DOCK_ACCESS_INDEX or not access[DOCK_ACCESS_INDEX]:
+        # Logged in but not granted Dock Scheduler — send back to the hub.
+        return redirect(LOGIN_URL)
+    return None
+
+
+with app.app_context():
+    db.create_all()
+    with db.engine.connect() as conn:
+        for stmt in [
+            'ALTER TABLE reservations ADD COLUMN notes TEXT',
+            'ALTER TABLE reservations ADD COLUMN start_date DATE',
+            'ALTER TABLE reservations ADD COLUMN end_date DATE',
+            'ALTER TABLE reservations ADD COLUMN all_day BOOLEAN NOT NULL DEFAULT 0',
+        ]:
+            try:
+                conn.execute(db.text(stmt))
+                conn.commit()
+            except Exception:
+                pass
+        try:
+            conn.execute(db.text(
+                'UPDATE reservations SET start_date = "date", end_date = "date" '
+                'WHERE start_date IS NULL'
+            ))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(db.text('ALTER TABLE reservations DROP COLUMN "date"'))
+            conn.commit()
+        except Exception:
+            pass
+        # Legacy tables created name/company/email as NOT NULL, but the model now
+        # treats them as optional (display_name falls back company->name->default and
+        # the forms submit None when blank). SQLite can't relax a column constraint in
+        # place, so rebuild the table once if company is still marked NOT NULL.
+        try:
+            cols = conn.execute(db.text('PRAGMA table_info(reservations)')).fetchall()
+            company_required = any(c[1] == 'company' and c[3] == 1 for c in cols)
+            if company_required:
+                conn.execute(db.text('DROP TABLE IF EXISTS reservations_new'))
+                conn.execute(db.text('''
+                    CREATE TABLE reservations_new (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        name VARCHAR(100),
+                        company VARCHAR(100),
+                        email VARCHAR(100),
+                        dock_number VARCHAR(200) NOT NULL,
+                        dock_type VARCHAR(100) NOT NULL,
+                        start_time DATETIME NOT NULL,
+                        end_time DATETIME NOT NULL,
+                        created_at DATETIME NOT NULL,
+                        notes TEXT,
+                        start_date DATE,
+                        end_date DATE,
+                        all_day BOOLEAN NOT NULL DEFAULT 0
+                    )
+                '''))
+                conn.execute(db.text('''
+                    INSERT INTO reservations_new
+                        (id, name, company, email, dock_number, dock_type,
+                         start_time, end_time, created_at, notes,
+                         start_date, end_date, all_day)
+                    SELECT id, name, company, email, dock_number, dock_type,
+                           start_time, end_time, created_at, notes,
+                           start_date, end_date, all_day
+                    FROM reservations
+                '''))
+                conn.execute(db.text('DROP TABLE reservations'))
+                conn.execute(db.text('ALTER TABLE reservations_new RENAME TO reservations'))
+                conn.commit()
+        except Exception:
+            conn.rollback()
+
+
+# Minimum gap (minutes) required around a booking on the same dock, before and after.
+BOOKING_BUFFER_MINUTES = 30
+
+
+ALL_DOCKS = [
+    {'number': '301A', 'label': '301A'},
+    {'number': '301B', 'label': '301B'},
+    {'number': '301C', 'label': '301C'},
+    {'number': '302',  'label': '302'},
+    {'number': '303',  'label': '303'},
+    {'number': '304',  'label': '304'},
+    {'number': '305A', 'label': '305A'},
+    {'number': '305B', 'label': '305B'},
+    {'number': '305C', 'label': '305C'},
+    {'number': '305D', 'label': '305D'},
+    {'number': '305E', 'label': '305E'},
+    {'number': '305F', 'label': '305F'},
+    {'number': '306A', 'label': '306A'},
+    {'number': '306B', 'label': '306B'},
+    {'number': '307',  'label': '307'},
+    {'number': '308',  'label': '308'},
+    {'number': '309',  'label': '309'},
+    {'number': '310',  'label': '310'},
+    {'number': '311',  'label': '311'},
+    {'number': '312A', 'label': '312A'},
+    {'number': '312B', 'label': '312B'},
+    {'number': '312C', 'label': '312C'},
+    {'number': '313',  'label': '313'},
+    {'number': '314',  'label': '314'},
+    {'number': '315',  'label': '315'},
+    {'number': '316',  'label': '316'},
+    {'number': '316B', 'label': '316B'},
+    {'number': '317B', 'label': '317B'},
+    {'number': '317',  'label': '317'},
+    {'number': '318',  'label': '318'},
+    {'number': '319',  'label': '319'},
+    {'number': '320',  'label': '320'},
+    {'number': '321',  'label': '321'},
+    {'number': '321B', 'label': '321B'},
+    {'number': '322B', 'label': '322B'},
+    {'number': '322',  'label': '322'},
+    {'number': '323',  'label': '323'},
+    {'number': '324',  'label': '324'},
+    {'number': '325',  'label': '325'},
+    {'number': '326',  'label': '326'},
+    {'number': '327',  'label': '327'},
+    {'number': '328A', 'label': '328A'},
+    {'number': '328B', 'label': '328B'},
+    {'number': '328C', 'label': '328C'},
+]
+
+V_COORDS = [
+    # 301A, 301B, 301C
+    (23.4,  5.3), (23.9,  6.7), (24.4,  8.1),
+    # 302, 303, 304
+    (25.4, 10.5), (25.9, 12.2), (26.4, 14.0),
+    # 305A–305F
+    (27.4, 16.1), (27.9, 17.5), (28.4, 18.9),
+    (28.9, 20.3), (29.4, 21.7), (29.9, 23.1),
+    # 306A, 306B, 307–311
+    (31.7, 28.3), (32.4, 30.2), (33.2, 32.6),
+    (33.9, 34.3), (34.4, 35.8), (35.3, 37.5), (35.9, 39.8),
+]
+H_COORDS = [
+    (41.9,37.0),(42.9,37.2),(44.6,37.0),(45.8,37.0),(46.9,37.0),
+    (48.1,37.0),(49.2,37.0),(50.2,37.0),(51.6,37.0),(52.5,37.0),
+    (53.9,37.1),(56.1,37.0),(57.3,37.0),(58.1,37.0),(59.4,37.0),
+    (60.6,37.0),(62.1,37.0),(62.9,37.0),(66.2,37.0),(67.6,37.0),
+    (68.6,37.0),(69.7,37.1),(70.9,37.0),(72.4,37.0),(73.2,37.0),
+]
+V_DOCKS = [d['number'] for d in ALL_DOCKS[:19]]
+H_DOCKS = [d['number'] for d in ALL_DOCKS[19:]]
+
+
+class FormError(Exception):
+    """A user-fixable problem with submitted form data (carries a friendly message)."""
+
+
+def _parse_dates_times(form, dock_type):
+    """Resolve (start_date, end_date, start_time, end_time, all_day) from an
+    add/edit form. Raises FormError with a user-friendly message when a required
+    field is missing or malformed, so the route can flash it instead of 500ing.
+    """
+    all_day = 'all_day' in form
+
+    start_raw = form.get('start_date', '').strip()
+    if not start_raw:
+        raise FormError('Please select a start date.')
+    try:
+        start_date = date.fromisoformat(start_raw)
+    except ValueError:
+        raise FormError("That start date isn't valid.")
+
+    if dock_type == 'utility':
+        return start_date, date(9999, 12, 31), time(0, 0), time(23, 59), True
+
+    end_raw = form.get('end_date', '').strip()
+    if not end_raw:
+        raise FormError('Please select an end date.')
+    try:
+        end_date = date.fromisoformat(end_raw)
+    except ValueError:
+        raise FormError("That end date isn't valid.")
+    if end_date < start_date:
+        raise FormError("End date can't be before the start date.")
+
+    if all_day:
+        return start_date, end_date, time(0, 0), time(23, 59), True
+
+    start_time_raw = form.get('start_time', '').strip()
+    end_time_raw   = form.get('end_time', '').strip()
+    if not start_time_raw or not end_time_raw:
+        raise FormError('Please choose an arrival and departure time, or check All Day.')
+    try:
+        start_time = time.fromisoformat(start_time_raw)
+        end_time   = time.fromisoformat(end_time_raw)
+    except ValueError:
+        raise FormError("Those times aren't valid.")
+    return start_date, end_date, start_time, end_time, False
+
+
+@app.route('/')
+def home():
+    return render_template('home.html')
+
+
+@app.route('/reservations')
+def index():
+    filter_mode = request.args.get('filter', 'all')
+    sort_mode   = request.args.get('sort', 'recent')
+    today = date.today()
+
+    query = Reservation.query
+
+    if filter_mode == 'today':
+        query = query.filter(Reservation.start_date <= today, Reservation.end_date >= today)
+    elif filter_mode == 'past':
+        query = query.filter(Reservation.end_date < today)
+    elif filter_mode == 'upcoming':
+        query = query.filter(Reservation.start_date > today)
+
+    if sort_mode == 'old':
+        query = query.order_by(Reservation.start_date.asc(), Reservation.start_time.asc())
+    elif sort_mode == 'name':
+        query = query.order_by(Reservation.name.asc())
+    elif sort_mode == 'dock':
+        query = query.order_by(Reservation.dock_number.asc())
+    elif sort_mode == 'duration':
+        reservations = query.all()
+        reservations.sort(key=lambda r: (r.end_date - r.start_date).days, reverse=True)
+        return render_template('index.html', reservations=reservations,
+                               filter_mode=filter_mode, sort_mode=sort_mode)
+    else:
+        query = query.order_by(Reservation.start_date.desc(), Reservation.start_time.desc())
+
+    reservations = query.all()
+    return render_template('index.html', reservations=reservations,
+                           filter_mode=filter_mode, sort_mode=sort_mode)
+
+
+@app.route('/all')
+def all_reservations():
+    reservations = Reservation.query.order_by(
+        Reservation.start_date, Reservation.start_time).all()
+    return render_template('index.html', reservations=reservations,
+                           filter_mode='all', sort_mode='recent')
+
+
+@app.route('/delete/<int:id>', methods=['POST'])
+def delete_reservation(id):
+    reservation = Reservation.query.get_or_404(id)
+    log_action('delete', user=current_user_name(session), source='DockScheduler',
+               target_type='reservation', target_id=id,
+               detail=f'Deleted reservation for {reservation.display_name} on dock {reservation.dock_number}')
+    db.session.delete(reservation)
+    db.session.commit()
+    flash('Reservation deleted.')
+    return redirect(url_for('index'))
+
+
+@app.route('/edit/<int:id>', methods=['GET', 'POST'])
+def edit_reservation(id):
+    reservation = Reservation.query.get_or_404(id)
+
+    if request.method == 'POST':
+        reservation.name    = request.form.get('name')    or None
+        reservation.company = request.form.get('company') or None
+        reservation.email   = request.form.get('email')   or None
+
+        dock_numbers = request.form.getlist('dock_number')
+        if not dock_numbers:
+            flash('Please select at least one dock.')
+            return redirect(url_for('edit_reservation', id=id))
+        reservation.dock_number = ','.join(dock_numbers)
+
+        dock_type = request.form['dock_type']
+        reservation.dock_type = dock_type
+
+        try:
+            (reservation.start_date, reservation.end_date,
+             reservation.start_time, reservation.end_time,
+             reservation.all_day) = _parse_dates_times(request.form, dock_type)
+        except FormError as e:
+            flash(str(e))
+            return redirect(url_for('edit_reservation', id=id))
+
+        reservation.notes = request.form.get('notes', '')
+
+        conflict = Reservation.has_conflict(
+            reservation.dock_numbers,
+            reservation.start_date, reservation.end_date,
+            reservation.start_time, reservation.end_time,
+            leeway_minutes=BOOKING_BUFFER_MINUTES,
+            exclude_id=reservation.id,
+            all_day=reservation.all_day
+        )
+        if conflict:
+            flash('That dock is already booked then — a 30-minute gap is required before and after each booking.')
+            return redirect(url_for('edit_reservation', id=id))
+
+        log_action('edit', user=current_user_name(session), source='DockScheduler',
+                   target_type='reservation', target_id=reservation.id,
+                   detail=f'Edited reservation for {reservation.display_name} on dock {reservation.dock_number}')
+        db.session.commit()
+        flash('Reservation updated!')
+        return redirect(url_for('index'))
+
+    all_res_json = [
+        {
+            'name':  r.display_name,
+            'start': str(r.start_date),
+            'end':   str(r.end_date) if r.end_date.year != 9999 else None,
+            'color': CALENDAR_COLORS[r.id % len(CALENDAR_COLORS)],
+        }
+        for r in Reservation.query.all()
+    ]
+    return render_template('add.html', r=reservation,
+                           dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS,
+                           all_res_json=all_res_json)
+
+@app.route('/add', methods=['GET', 'POST'])
+def add_reservation():
+    if request.method == 'POST':
+        name    = request.form.get('name')    or None
+        company = request.form.get('company') or None
+        email   = request.form.get('email')   or None
+
+        dock_numbers = request.form.getlist('dock_number')
+        if not dock_numbers:
+            flash('Please select at least one dock.')
+            return redirect(url_for('add_reservation'))
+        dock_number = ','.join(dock_numbers)
+
+        dock_type = request.form['dock_type']
+
+        try:
+            start_date, end_date, start_time, end_time, all_day = \
+                _parse_dates_times(request.form, dock_type)
+        except FormError as e:
+            flash(str(e))
+            return redirect(url_for('add_reservation'))
+
+        notes = request.form.get('notes', '')
+
+        conflict = Reservation.has_conflict(
+            [d.strip() for d in dock_number.split(',')],
+            start_date, end_date, start_time, end_time,
+            leeway_minutes=BOOKING_BUFFER_MINUTES,
+            all_day=all_day
+        )
+        if conflict:
+            flash('That dock is already booked then — a 30-minute gap is required before and after each booking.')
+            return redirect(url_for('add_reservation'))
+
+        new_res = Reservation(
+            name=name, company=company, email=email,
+            dock_number=dock_number, dock_type=dock_type,
+            all_day=all_day, start_date=start_date, end_date=end_date,
+            start_time=start_time, end_time=end_time, notes=notes,
+        )
+        db.session.add(new_res)
+        db.session.commit()
+        log_action('create', user=current_user_name(session), source='DockScheduler',
+                   target_type='reservation', target_id=new_res.id,
+                   detail=f'Created reservation for {new_res.display_name} on dock {new_res.dock_number}')
+        flash('Reservation added!')
+        return redirect(url_for('index'))
+
+    prefill_date = request.args.get('date', '')
+    all_res_json = [
+        {
+            'name':  r.display_name,
+            'start': str(r.start_date),
+            'end':   str(r.end_date) if r.end_date.year != 9999 else None,
+            'color': CALENDAR_COLORS[r.id % len(CALENDAR_COLORS)],
+        }
+        for r in Reservation.query.all()
+    ]
+    return render_template('add.html', dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS,
+                           prefill_date=prefill_date, all_res_json=all_res_json)
+
+
+@app.route('/daily')
+def daily_view():
+    date_str = request.args.get('date')
+    if date_str:
+        try:
+            view_date = date.fromisoformat(date_str)
+        except ValueError:
+            view_date = date.today()
+    else:
+        view_date = date.today()
+
+    today = date.today()
+
+    # Every reservation overlapping this day — the same window the index uses, so
+    # the live view mirrors the reservation list exactly (no "active right now" filter).
+    reservations = Reservation.query.filter(
+        Reservation.start_date <= view_date,
+        Reservation.end_date   >= view_date
+    ).all()
+
+    dock_status = {}
+    for dock in ALL_DOCKS:
+        dock_num = dock['number']
+        dock_res = [r for r in reservations if dock_num in r.dock_numbers]
+        # All-day/utility (00:00) float to the top, then chronological by start time.
+        dock_res.sort(key=lambda r: (r.start_time, r.end_time))
+
+        dock_status[dock_num] = {
+            'label':        dock['label'],
+            'available':    not dock_res,
+            'reservations': dock_res,
+        }
+
+    prev_date = view_date - timedelta(days=1)
+    next_date = view_date + timedelta(days=1)
+
+    v_docks_coords = list(zip(V_DOCKS, V_COORDS))
+    h_docks_coords = list(zip(H_DOCKS, H_COORDS))
+
+    custom_markers = CustomMarker.query.filter(CustomMarker.expires_at >= view_date).all()
+
+    return render_template('daily.html',
+        dock_status=dock_status,
+        v_docks_coords=v_docks_coords,
+        h_docks_coords=h_docks_coords,
+        today=today,
+        view_date=view_date,
+        prev_date=prev_date,
+        next_date=next_date,
+        custom_markers=custom_markers,
+    )
+
+
+@app.route('/custom-marker/add', methods=['POST'])
+def add_custom_marker():
+    label      = request.form.get('label', '').strip() or 'Custom Marker'
+    x          = float(request.form['x'])
+    y          = float(request.form['y'])
+    expires_at = date.fromisoformat(request.form['expires_at'])
+    date_param = request.form.get('date', '')
+    db.session.add(CustomMarker(label=label, x=x, y=y, expires_at=expires_at))
+    db.session.commit()
+    return redirect(url_for('daily_view', date=date_param))
+
+
+@app.route('/custom-marker/delete/<int:id>', methods=['POST'])
+def delete_custom_marker(id):
+    marker     = CustomMarker.query.get_or_404(id)
+    date_param = request.form.get('date', '')
+    db.session.delete(marker)
+    db.session.commit()
+    return redirect(url_for('daily_view', date=date_param))
+
+
+@app.route('/monthly')
+@app.route('/monthly/<int:year>/<int:month>')
+def monthly(year=None, month=None):
+    today = date.today()
+    if year is None:
+        year = today.year
+    if month is None:
+        month = today.month
+
+    cal        = calendar.Calendar(firstweekday=6).monthdayscalendar(year, month)
+    month_name = calendar.month_name[month]
+
+    month_start = date(year, month, 1)
+    _, last_day = calendar.monthrange(year, month)
+    month_end   = date(year, month, last_day)
+
+    reservations = Reservation.query.filter(
+        Reservation.start_date <= month_end,
+        Reservation.end_date   >= month_start
+    ).all()
+
+    res_colors = {r.id: CALENDAR_COLORS[r.id % len(CALENDAR_COLORS)] for r in reservations}
+
+    res_by_day = {}
+    for r in reservations:
+        clipped_start = max(r.start_date, month_start)
+        clipped_end   = min(r.end_date,   month_end)
+        cur = clipped_start
+        while cur <= clipped_end:
+            res_by_day.setdefault(cur.day, []).append(r)
+            cur += timedelta(days=1)
+
+    if month == 1:
+        prev_month, prev_year = 12, year - 1
+    else:
+        prev_month, prev_year = month - 1, year
+
+    if month == 12:
+        next_month, next_year = 1, year + 1
+    else:
+        next_month, next_year = month + 1, year
+
+    return render_template('monthly.html',
+        cal=cal, month_name=month_name, year=year, month=month,
+        res_by_day=res_by_day, res_colors=res_colors,
+        dock_colors=DOCK_COLORS,
+        prev_month=prev_month, prev_year=prev_year,
+        next_month=next_month, next_year=next_year,
+        today=today,
+    )
+
+@app.route('/history/<target_type>/<int:target_id>')
+def history(target_type, target_id):
+    return jsonify(get_record_logs(target_type, target_id))
+
+
+if __name__ == '__main__':
+    app.run(debug=True)

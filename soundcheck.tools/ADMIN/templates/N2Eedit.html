@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Noke2Excel</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #111; min-height: 100vh; padding: 2rem 1.5rem; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #f0f0f0; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 12px; }
+        .header h2 { font-size: 18px; font-weight: 500; color: #fff; }
+        .sub { font-size: 13px; color: #666; margin-bottom: 1.5rem; }
+
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 0 14px; background: #1a1a1a; border: 1.5px solid #2a2a2a; border-radius: 8px; color: #ccc; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: 0.15s; }
+        .btn:hover { border-color: #444; color: #fff; }
+        .push-btn { border-color: #333; color: #444; letter-spacing: 0.02em; }
+        .push-btn.dirty { border-color: #fff200; color: #fff200; }
+        .push-btn.dirty:hover { background: #fff200; color: #1a1a00; }
+
+        #search { max-width: 320px; margin: 12px 0 20px; }
+        input[type="text"] { width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; color: #fff; padding: 9px 12px; font-size: 0.9rem; border-radius: 8px; outline: none; }
+        input[type="text"]:focus { border-color: #fff200; }
+
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #888; padding: 0 8px 12px; text-align: left; white-space: nowrap; }
+        tbody tr { border-top: 1px solid #222; }
+        tbody tr:hover { background: #161616; }
+        tbody tr.dirty { background: #1a1900; }
+        tbody tr.dirty:hover { background: #222200; }
+        td { padding: 10px 8px; font-size: 13px; }
+        td[contenteditable="true"] { border-radius: 5px; outline: none; min-width: 60px; }
+        td[contenteditable="true"]:focus { background: #1e1e1e; box-shadow: 0 0 0 1.5px #fff200 inset; }
+
+        .row-actions { display: flex; gap: 6px; align-items: center; }
+        .remove-btn { width: 26px; height: 26px; border-radius: 6px; border: 1.5px solid #2a2a2a; background: #1a1a1a; color: #555; cursor: pointer; }
+        .remove-btn:hover { background: #3f0d0d; border-color: #ef4444; color: #ef4444; }
+
+        .add-row-btn { margin-top: 14px; }
+
+        .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #fff200; border-radius: 8px; padding: 10px 16px; font-size: 13px; color: #1a1a00; font-weight: 600; opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 100; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h2>Edit Noke2Excel</h2>
+    </div>
+    <div class="header-actions">
+        <a class="btn" href="/admin">&larr; Back to Admin</a>
+        <button class="btn push-btn" id="push-btn" onclick="pushToNoke2Excel()">Push to Noke2Excel</button>
+    </div>
+</div>
+<p class="sub">Edit the leasing details below, then push to update lockers.csv. Live NOKE data (artist,
+    contact, phone, shared users) is pulled automatically and isn't editable here.</p>
+
+<input type="text" id="search" placeholder="Search lockers, clients, billing entities...">
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Locker</th>
+                <th>Client</th>
+                <th>Size</th>
+                <th>Price</th>
+                <th>Sign Lease</th>
+                <th>Billing Entity</th>
+                <th>Billing Email</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="rows">
+        {% for row in rows %}
+            <tr data-original-id="{{ row.locker_id }}">
+                <td contenteditable="true" data-field="locker_id">{{ row.locker_id }}</td>
+                <td contenteditable="true" data-field="Client">{{ row.Client }}</td>
+                <td contenteditable="true" data-field="Size">{{ row.Size }}</td>
+                <td contenteditable="true" data-field="PRICE">{{ row.PRICE }}</td>
+                <td contenteditable="true" data-field="Sign Lease">{{ row["Sign Lease"] }}</td>
+                <td contenteditable="true" data-field="Billng Entity">{{ row["Billng Entity"] }}</td>
+                <td contenteditable="true" data-field="Email">{{ row.Email }}</td>
+                <td class="row-actions">
+                    <button class="remove-btn" title="Remove row" onclick="removeRow(this)">&times;</button>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<button class="btn add-row-btn" onclick="addRow()">+ Add Row</button>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    const FIELDS = ['locker_id', 'Client', 'Size', 'PRICE', 'Sign Lease', 'Billng Entity', 'Email'];
+
+    const rowsBody = document.getElementById('rows');
+    const pushBtn = document.getElementById('push-btn');
+    const dirtyRows = new Set();
+
+    function markDirty(tr) {
+        tr.classList.add('dirty');
+        dirtyRows.add(tr);
+        pushBtn.classList.add('dirty');
+    }
+
+    [...rowsBody.children].forEach(tr => {
+        tr.querySelectorAll('td[data-field]').forEach(td => {
+            td.addEventListener('input', () => markDirty(tr));
+        });
+    });
+
+    function addRow() {
+        const tr = document.createElement('tr');
+        tr.dataset.originalId = '';
+        FIELDS.forEach(field => {
+            const td = document.createElement('td');
+            td.contentEditable = 'true';
+            td.dataset.field = field;
+            td.addEventListener('input', () => markDirty(tr));
+            tr.appendChild(td);
+        });
+
+        const actionsTd = document.createElement('td');
+        actionsTd.className = 'row-actions';
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.title = 'Remove row';
+        removeBtn.textContent = '×';
+        removeBtn.onclick = () => removeRow(removeBtn);
+        actionsTd.appendChild(removeBtn);
+        tr.appendChild(actionsTd);
+
+        rowsBody.appendChild(tr);
+        markDirty(tr);
+    }
+
+    function removeRow(btn) {
+        const tr = btn.closest('tr');
+        dirtyRows.delete(tr);
+        tr.remove();
+    }
+
+    document.getElementById('search').addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        [...rowsBody.children].forEach(tr => {
+            tr.style.display = tr.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    async function pushToNoke2Excel() {
+        if (dirtyRows.size === 0) {
+            showToast('Nothing to push');
+            return;
+        }
+
+        const rows = [...dirtyRows].map(tr => {
+            const record = { originalId: tr.dataset.originalId };
+            tr.querySelectorAll('td[data-field]').forEach(td => {
+                record[td.dataset.field] = td.textContent.trim();
+            });
+            return record;
+        }).filter(r => r.locker_id);
+
+        try {
+            const res = await fetch('/admin/api/n2e/push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rows })
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || 'push failed');
+            }
+            dirtyRows.forEach(tr => {
+                tr.classList.remove('dirty');
+                tr.dataset.originalId = tr.querySelector('td[data-field="locker_id"]').textContent.trim();
+            });
+            dirtyRows.clear();
+            pushBtn.classList.remove('dirty');
+            showToast('Pushed to Noke2Excel');
+        } catch (err) {
+            showToast(err.message || 'Push failed');
+        }
+    }
+</script>
+
+</body>
+</html>

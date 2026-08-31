@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='scheduler_in_style.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dock Scheduler — Reservations</title>
+</head>
+<body>
+<div class="page-wrapper">
+
+    <div class="header">
+        <h1>Reservations</h1>
+        <a href="{{ url_for('add_reservation') }}" class="btn btn-primary">+ Add Reservation</a>
+    </div>
+
+    {% for message in get_flashed_messages() %}
+        <div class="flash">{{ message }}</div>
+    {% endfor %}
+
+    <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">Home</a>
+        <a href="{{ url_for('monthly') }}" class="btn btn-secondary">Monthly View</a>
+        <a href="{{ url_for('daily_view') }}" class="btn btn-secondary">Live Dock View</a>
+    </div>
+
+    <div class="filter-tabs">
+        <a href="{{ url_for('index', filter='all', sort=sort_mode) }}"
+           class="filter-tab {% if filter_mode == 'all' %}active{% endif %}">All</a>
+        <a href="{{ url_for('index', filter='today', sort=sort_mode) }}"
+           class="filter-tab {% if filter_mode == 'today' %}active{% endif %}">Today</a>
+        <a href="{{ url_for('index', filter='upcoming', sort=sort_mode) }}"
+           class="filter-tab {% if filter_mode == 'upcoming' %}active{% endif %}">Upcoming</a>
+        <a href="{{ url_for('index', filter='past', sort=sort_mode) }}"
+           class="filter-tab {% if filter_mode == 'past' %}active{% endif %}">Past</a>
+    </div>
+
+    <div class="sort-bar">
+        <span class="sort-label">Sort:</span>
+        <a href="{{ url_for('index', filter=filter_mode, sort='recent') }}"
+           class="sort-btn {% if sort_mode == 'recent' %}active{% endif %}">Most Recent</a>
+        <a href="{{ url_for('index', filter=filter_mode, sort='old') }}"
+           class="sort-btn {% if sort_mode == 'old' %}active{% endif %}">Oldest</a>
+        <a href="{{ url_for('index', filter=filter_mode, sort='duration') }}"
+           class="sort-btn {% if sort_mode == 'duration' %}active{% endif %}">Duration</a>
+        <a href="{{ url_for('index', filter=filter_mode, sort='name') }}"
+           class="sort-btn {% if sort_mode == 'name' %}active{% endif %}">Name</a>
+        <a href="{{ url_for('index', filter=filter_mode, sort='dock') }}"
+           class="sort-btn {% if sort_mode == 'dock' %}active{% endif %}">Dock</a>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Company / Artist</th>
+                    <th>Contact</th>
+                    <th>Dock(s)</th>
+                    <th>Type</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Arrival</th>
+                    <th>Departure</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in reservations %}
+            <tr>
+                <td data-label="Company / Artist">{{ r.company or '—' }}</td>
+                <td data-label="Contact">{{ r.name or '—' }}</td>
+                <td data-label="Dock(s)">{{ r.dock_number }}</td>
+                <td data-label="Type">{{ r.dock_type }}</td>
+                <td data-label="Start Date">{{ r.start_date }}</td>
+                <td data-label="End Date">{% if r.end_date.year == 9999 %}Indefinite{% else %}{{ r.end_date }}{% endif %}</td>
+                <td data-label="Arrival">{% if r.all_day %}All Day{% else %}{{ r.start_time.strftime('%I:%M %p') }}{% endif %}</td>
+                <td data-label="Departure">{% if r.all_day %}All Day{% else %}{{ r.end_time.strftime('%I:%M %p') }}{% endif %}</td>
+                <td data-label="Notes">{{ r.notes or '—' }}</td>
+                <td data-label="Actions">
+                    <div class="action-links">
+                        <a href="{{ url_for('edit_reservation', id=r.id) }}" class="btn btn-secondary">Edit</a>
+                        <form method="POST" action="{{ url_for('delete_reservation', id=r.id) }}"
+                              style="display:inline"
+                              onsubmit="return confirm('Delete this reservation?')">
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                        <button type="button" class="icon-btn" title="View history"
+                                onclick="openHistory({{ r.id }})">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 3v5h5"/>
+                                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>
+                                <path d="M12 7v5l4 2"/>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% if reservations | length == 0 %}
+            <p style="color:#aaa; padding:24px 0;">No reservations found.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<div id="history-modal" class="modal-overlay">
+  <div class="modal-box">
+    <h3 id="history-title">History</h3>
+    <div id="history-content"></div>
+    <button type="button" onclick="closeHistory()" class="btn btn-secondary modal-close">Close</button>
+  </div>
+</div>
+
+<script>
+    const HISTORY_URL = "{{ url_for('history', target_type='reservation', target_id=0) }}".replace(/\/0$/, '/');
+    const RES_NAMES = {
+        {% for r in reservations %}"{{ r.id }}": {{ r.display_name|tojson }}{% if not loop.last %},
+        {% endif %}{% endfor %}
+    };
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function actionClass(a) {
+        return ['create','edit','delete','approve','permissions'].includes(a) ? a : 'default';
+    }
+
+    function fmtLogTime(ts) {
+        if (!ts) return '';
+        const s = /[zZ]$|[+\-]\d\d:?\d\d$/.test(ts) ? ts : ts + 'Z';
+        const d = new Date(s);
+        return isNaN(d) ? ts : d.toLocaleString('en-US',
+            {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'});
+    }
+
+    async function openHistory(id) {
+        const modal = document.getElementById('history-modal');
+        document.getElementById('history-title').textContent =
+            (RES_NAMES[id] || ('Reservation #' + id)) + ' — History';
+        const content = document.getElementById('history-content');
+        content.innerHTML = '<p class="history-empty">Loading…</p>';
+        modal.classList.add('active');
+
+        try {
+            const res = await fetch(HISTORY_URL + id);
+            const logs = await res.json();
+            if (!logs.length) {
+                content.innerHTML = '<p class="history-empty">No history recorded for this reservation yet.</p>';
+                return;
+            }
+            content.innerHTML = '<div class="history-list">' + logs.map(l => `
+                <div class="history-item">
+                    <span class="history-badge ${actionClass(l.action)}">${escapeHtml(l.action)}</span>
+                    <div class="history-body">
+                        <div class="history-detail">${l.detail ? escapeHtml(l.detail) : escapeHtml(l.action)}</div>
+                        <div class="history-meta">${fmtLogTime(l.timestamp)}${l.user ? ' · ' + escapeHtml(l.user) : ''}${l.source ? ' · ' + escapeHtml(l.source) : ''}</div>
+                    </div>
+                </div>`).join('') + '</div>';
+        } catch (e) {
+            content.innerHTML = '<p class="history-empty">Could not load history.</p>';
+        }
+    }
+
+    function closeHistory() {
+        document.getElementById('history-modal').classList.remove('active');
+    }
+
+    document.getElementById('history-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeHistory();
+    });
+</script>
+</body>
+</html>

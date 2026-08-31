@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='scheduler_in_style.css') }}">
+    <meta charset="UTF-8">
+    <title>Edit Reservation</title>
+</head>
+<body>
+
+<h1>Edit Reservation</h1>
+{% for message in get_flashed_messages() %}
+    <p style="color:#fff200">{{message}}</p>
+{% endfor %}
+
+<form method="POST" action="/edit/{{ r.id }}">
+
+    <label>Name</label><br>
+    <input type="text" name="name" value="{{r.name}}"><br>
+
+    <label>Company</label><br>
+    <input type="text" name="company" value="{{r.company}}"><br>
+
+    <label>Email</label><br>
+    <input type="text" name="email" value="{{r.email}}"><br>
+
+    <label>Dock Number</label><br>
+    <input type="text" name="dock_number" value="{{r.dock_number}}"><br>
+
+    <label>Dock Type</label><br>
+    <select name="dock_type">
+        <option value="regular" {% if r.dock_type == 'regular' %}selected{% endif %}>Regular</option>
+        <option value="bus" {% if r.dock_type == 'bus' %}selected{% endif %}>Bus</option>
+    </select><br>
+
+    <label>Date</label><br>
+    <input type="date" name="date" value="{{r.date}}" required><br>
+
+    <label>Start Time</label><br>
+    <input type="time" name="start_time" value="{{r.start_time}}" required><br>
+
+    <label>End Time</label><br>
+    <input type="time" name="end_time" value="{{r.end_time}}" required><br>
+
+    <button type="submit">Save Changes</button>
+
+</form>
+
+<a href="/">Back to Index</a>
+
+</body>
+</html>

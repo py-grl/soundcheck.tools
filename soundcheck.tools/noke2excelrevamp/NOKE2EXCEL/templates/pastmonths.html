@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='tools.css') }}">
+    <title>Past Months — Rock Nashville Lockers</title>
+</head>
+<body>
+<h1>Past Months</h1>
+<a href="{{ url_for('home') }}" class="past-months-btn">&larr; Back to Current</a>
+
+{% if spreadsheets %}
+<ul class="spread-list">
+    {% for s in spreadsheets %}
+    <li>
+        <a href="{{ url_for('download_spreadsheet', filename=s.filename) }}">
+            {{ s.label }}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No saved spreadsheets found yet.</p>
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,1046 @@
+/* ==========================
+BASE
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&display=swap');
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #111111;
+    color: #ffffff;
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+}
+
+a {
+    color: #fff200;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+h1, h2, h3 {
+    color: #ffffff;
+    font-weight: 800;
+}
+
+h1 {
+    font-size: 2rem;
+}
+
+h2 {
+    font-size: 1.4rem;
+    color: #fff200;
+}
+
+h3 {
+    font-size: 1.1rem;
+    color: #aaaaaa;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 2rem;
+}
+
+/*=============
+LAYOUT
+ */
+.page-wrapper {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 0;
+    border-bottom: 1px solid #fff200;
+    margin-bottom: 32px;
+}
+
+/*========
+FLASH MESSAGES
+ */
+
+.flash {
+    background-color: #1e1e1e;
+    border-left: 4px solid #fff200;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    color: #fff200;
+}
+
+/*========
+BUTTONS
+ */
+
+.btn {
+    display: inline-block;
+    padding: 14px 28px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    border: none;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-decoration: none;
+    transform: translateY(0);
+    box-shadow: 0 0 0 0 transparent;
+    transition: background-color 0.2s ease-in-out,
+                color 0.2s ease-in-out,
+                box-shadow 0.2s ease-in-out,
+                transform 0.2s ease-in-out,
+                border-color 0.2s ease-in-out;
+}
+
+.btn:focus,
+.btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 0 transparent;
+    transform: translateY(0);
+}
+
+.btn-primary:visited,
+.btn-primary:active {
+    background-color: #fff200;
+    color: #000000;
+    text-decoration: none;
+}
+
+.btn-secondary:visited {
+    color: #fff200;
+    text-decoration: none;
+}
+
+.btn-danger:visited {
+    color: #ff4444;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background-color: #fff200;
+    color: #000000;
+}
+
+.btn-primary:hover {
+    background-color: #ffef00;
+    color: #000000;
+    text-decoration: none;
+    box-shadow: 0 0 28px rgba(255, 242, 0, 0.6), 0 0 56px rgba(255, 242, 0, 0.25);
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background-color: transparent;
+    color: #ff4444;
+    border: 1px solid #ff4444;
+}
+
+.btn-danger:hover {
+    background-color: #ff4444;
+    color: #ffffff;
+    text-decoration: none;
+    box-shadow: 0 0 24px rgba(255, 68, 68, 0.5);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: #fff200;
+    border: 1px solid #fff200;
+}
+
+.btn-secondary:hover {
+    background-color: #fff200;
+    color: #000000;
+    text-decoration: none;
+    box-shadow: 0 0 28px rgba(255, 242, 0, 0.6), 0 0 56px rgba(255, 242, 0, 0.25);
+    transform: translateY(-2px);
+}
+
+/*=========
+HOME NAV
+ */
+.home-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 48px;
+    max-width: 480px;
+}
+
+.home-btn {
+    display: block;
+    padding: 28px 40px;
+    font-size: 1.15rem;
+    letter-spacing: 3px;
+    text-align: center;
+}
+
+/*=========
+FORMS
+ */
+.form-wrapper {
+    max-width: 600px;
+    background-color: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    padding: 32px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #aaaaaa;
+    margin-bottom: 6px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+    width: 100%;
+    background-color: #111111;
+    border: 1px solid #333333;
+    color: #ffffff;
+    padding: 10px 14px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: 0.2s;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #fff200;
+}
+
+select option {
+    background-color: #1a1a1a;
+}
+
+/*========
+TABLE
+ */
+
+.table-wrapper {
+    overflow-x: auto;
+    margin: 24px 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+thead tr {
+    border-bottom: 1px solid #fff200;
+}
+
+th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #fff200;
+    font-weight: 700;
+}
+
+td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #1e1e1e;
+    color: #dddddd;
+}
+
+tr:hover td {
+    background-color: #1a1a1a;
+}
+
+.action-links {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Compact the action buttons so the Actions column doesn't dominate the row */
+.action-links .btn {
+    padding: 8px 14px;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+}
+
+.action-links .icon-btn {
+    width: 38px;
+    height: 38px;
+}
+
+/*================
+RESPONSIVE TABLE -> CARDS (no horizontal scrolling on small screens)
+ */
+@media (max-width: 1024px) {
+    .table-wrapper { overflow-x: visible; }
+
+    table, tbody, tr, td { display: block; width: 100%; }
+    thead { display: none; }            /* labels come from each cell's data-label */
+
+    tr {
+        background: #161616;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        padding: 4px 16px;
+    }
+
+    tr:hover td { background: transparent; }
+
+    td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        text-align: right;
+        padding: 11px 0;
+        border-bottom: 1px solid #242424;
+    }
+
+    td:last-child { border-bottom: none; }
+
+    td::before {
+        content: attr(data-label);
+        flex-shrink: 0;
+        text-align: left;
+        color: #fff200;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .action-links { justify-content: flex-end; }
+
+    .header { flex-wrap: wrap; gap: 16px; }
+}
+
+@media (max-width: 520px) {
+    .page-wrapper { padding: 24px 16px; }
+    h1 { font-size: 1.6rem; }
+    .header { padding: 16px 0; margin-bottom: 24px; }
+    .header .btn { width: 100%; text-align: center; }
+}
+
+/*================
+MONTHLY CALENDAR
+ */
+.calendar-nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.calendar-table th {
+    text-align: center;
+    padding: 12px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #fff200;
+    border-bottom: 1px solid #333;
+}
+
+.calendar-table td {
+    width: 14.28%;
+    height: 100px;
+    vertical-align: top;
+    padding: 8px;
+    border: 1px solid #1e1e1e;
+    cursor: default;
+    transition: background 0.2s ease-in-out;
+}
+
+/* suppress full-row hover for calendar; highlight only the hovered cell */
+.calendar-table tr:hover td {
+    background-color: transparent;
+}
+
+/* same specificity as above — later in sheet wins when td is hovered */
+.calendar-table tr td:hover {
+    background-color: #1a1a1a;
+}
+
+.day-number {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #dddddd;
+    margin-bottom: 4px;
+}
+
+.day-dot {
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #fff200;
+    margin-top: 6px;
+}
+
+.today-cell {
+    background-color: #1a1a1a;
+    border-color: #fff200 !important;
+}
+
+/*=======
+MODAL
+ */
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-box {
+    background: #1a1a1a;
+    border: 1px solid #fff200;
+    padding: 32px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-box h3 {
+    color: #fff200;
+    margin-bottom: 20px;
+}
+
+.modal-reservation {
+    border-bottom: 1px solid #2a2a2a;
+    padding: 12px 0;
+    color: #dddddd;
+}
+
+.modal-reservation:last-child {
+    border-bottom: none;
+}
+
+.modal-close {
+    margin-top: 20px;
+}
+
+/*========
+DAILY VIEW LEGEND
+ */
+
+.legend {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    padding: 16px 0;
+    margin-bottom: 16px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/*========
+DAILY MAP
+ */
+
+.map-action-bar {
+    max-width: 1400px;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.daily-info {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    margin-bottom: 20px;
+}
+
+.daily-date {
+    font-size: 0.95rem;
+    color: #aaaaaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.daily-clock {
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: #fff200;
+    letter-spacing: 4px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.map-wrapper {
+    position: relative;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.map-wrapper img {
+    width: 100%;
+    display: block;
+    opacity: 0.85;
+}
+
+.dock-dot {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    cursor: default;
+    transform: translate(-50%, -50%);
+    transition: transform 0.2s;
+}
+
+.dock-dot:hover {
+    transform: translate(-50%, -50%) scale(1.5);
+    z-index: 20;
+}
+
+.dock-dot.green { background-color: #00ff88; }
+.dock-dot.red   { background-color: #ff3333; }
+
+.dock-dot .tooltip {
+    display: none;
+    position: absolute;
+    bottom: 26px;
+    left: 50%;
+    transform: translate(-50%);
+    background: #fff200;
+    color: #000;
+    padding: 8px 12px;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 30;
+    pointer-events: none;
+    line-height: 1.5;
+}
+
+.dock-dot:hover .tooltip {
+    display: block;
+}
+
+/*========
+CALENDAR EVENT CHIPS
+ */
+
+.cal-chip {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fff;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+/*========
+FILTER TABS
+ */
+
+.filter-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0;
+    border-bottom: 1px solid #333;
+}
+
+.filter-tab {
+    padding: 10px 20px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #aaa;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.filter-tab:hover {
+    color: #fff200;
+    text-decoration: none;
+}
+
+.filter-tab.active {
+    color: #fff200;
+    border-bottom-color: #fff200;
+}
+
+/*========
+SORT BAR
+ */
+
+.sort-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.sort-label {
+    color: #aaa;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-right: 4px;
+}
+
+.sort-btn {
+    padding: 5px 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #aaa;
+    border: 1px solid #333;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.sort-btn:hover {
+    color: #fff200;
+    border-color: #fff200;
+    text-decoration: none;
+}
+
+.sort-btn.active {
+    color: #000;
+    background: #fff200;
+    border-color: #fff200;
+}
+
+/*========
+DAILY DATE NAV
+ */
+
+.daily-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.today-badge {
+    display: inline-block;
+    background: #fff200;
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.date-jump-input {
+    background: #111;
+    border: 1px solid #333;
+    color: #fff;
+    padding: 8px 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    outline: none;
+    width: auto;
+}
+
+.date-jump-input:focus {
+    border-color: #fff200;
+}
+
+/*========
+DOCK CHECKBOX GRID
+ */
+
+.dock-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 0;
+}
+
+.dock-checkbox {
+    display: block;
+    cursor: pointer;
+    text-transform: none;
+    font-size: 1rem;
+    letter-spacing: 0;
+    color: #fff;
+    margin: 0;
+}
+
+.dock-checkbox input[type="checkbox"] {
+    display: none;
+}
+
+.dock-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 40px;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: #aaa;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.dock-tile:hover {
+    border-color: #fff200;
+    color: #fff200;
+}
+
+.dock-checkbox input:checked + .dock-tile {
+    background: #fff200;
+    border-color: #fff200;
+    color: #000;
+}
+
+/*========
+FORM HELPERS
+ */
+
+.field-hint {
+    font-size: 0.72rem;
+    color: #666;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: #aaa;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    accent-color: #fff200;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/*========
+ADD PAGE LAYOUT
+ */
+
+/*========
+CUSTOM MARKERS
+ */
+
+.custom-dot {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px dashed #fff200;
+    background: rgba(255, 242, 0, 0.2);
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    transition: transform 0.2s;
+    z-index: 10;
+}
+
+.custom-dot:hover {
+    transform: translate(-50%, -50%) scale(1.5);
+    z-index: 20;
+}
+
+.custom-dot .tooltip {
+    display: none;
+    position: absolute;
+    bottom: 26px;
+    left: 50%;
+    transform: translate(-50%);
+    background: #fff200;
+    color: #000;
+    padding: 8px 12px;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 30;
+    pointer-events: none;
+    line-height: 1.5;
+}
+
+.custom-dot:hover .tooltip {
+    display: block;
+}
+
+#placement-overlay {
+    display: none;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    cursor: crosshair;
+    z-index: 25;
+}
+
+#placement-overlay.active {
+    display: block;
+}
+
+.placement-banner {
+    display: none;
+    max-width: 1400px;
+    margin: 0 auto 8px;
+    background: rgba(255, 242, 0, 0.1);
+    border: 1px solid #fff200;
+    color: #fff200;
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.placement-banner.active {
+    display: flex;
+}
+
+.placement-cancel {
+    background: transparent;
+    border: 1px solid #fff200;
+    color: #fff200;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.placement-cancel:hover {
+    background: #fff200;
+    color: #000;
+}
+
+/*========
+ADD PAGE LAYOUT
+ */
+
+.add-layout {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+}
+
+.add-layout .form-wrapper {
+    flex-shrink: 0;
+}
+
+.cal-panel {
+    flex: 1;
+    min-width: 320px;
+    position: sticky;
+    top: 24px;
+}
+
+.cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.cal-nav span {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #fff200;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.cal-nav .btn {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+}
+
+.cal-selected {
+    background-color: #fff200 !important;
+}
+
+.cal-selected .day-number {
+    color: #000 !important;
+}
+
+.cal-in-range {
+    background-color: rgba(255, 242, 0, 0.15);
+}
+
+/*========
+HISTORY (per-record activity)
+ */
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: 1px solid #fff200;
+    color: #fff200;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.icon-btn:hover {
+    border-color: #fff200;
+    color: #fff200;
+    box-shadow: 0 0 18px rgba(255, 242, 0, 0.35);
+    transform: translateY(-2px);
+}
+
+.icon-btn svg { display: block; }
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.history-item {
+    display: flex;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid #2a2a2a;
+    align-items: flex-start;
+}
+
+.history-item:last-child { border-bottom: none; }
+
+.history-badge {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 0;
+    border-radius: 3px;
+    width: 92px;
+    text-align: center;
+}
+
+.history-badge.create      { background: #0f3d2e; color: #3ddc91; }
+.history-badge.edit        { background: #3d3a0f; color: #fff200; }
+.history-badge.delete      { background: #3d0f0f; color: #ff6b6b; }
+.history-badge.approve     { background: #14532d; color: #4ade80; }
+.history-badge.permissions { background: #1e2a4d; color: #7aa2ff; }
+.history-badge.default     { background: #2a2a2a; color: #bbbbbb; }
+
+.history-body { flex: 1; min-width: 0; }
+
+.history-detail {
+    color: #dddddd;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.history-meta {
+    color: #777777;
+    font-size: 0.72rem;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.history-empty {
+    color: #777777;
+    padding: 24px 0;
+    text-align: center;
+    font-size: 0.9rem;
+}

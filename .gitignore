@@ -1,0 +1,40 @@
+# Credentials & secrets
+.env
+*.env
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+
+# PyCharm
+.idea/
+
+# User data
+users.json
+users.json.*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+__MACOSX/
+
+# Logs
+*.log
+
+# Misc tooling
+.qodo/
+
+# Old backup archive - contains a bundled .env with real credentials
+NOKE2EXCEL.zip

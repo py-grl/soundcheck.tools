@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soundcheck Tools — Overview</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --y: #fff200;
+    --blk: #0d0d0d;
+    --blk2: #141414;
+    --blk3: #1c1c1c;
+    --grey: #252525;
+    --txt: #f0f0f0;
+    --txt2: #666;
+    --radius: 12px;
+  }
+  body { background: var(--blk); color: var(--txt); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+  .page { max-width: 900px; margin: 0 auto; padding: 0 28px 60px; }
+
+  header { padding: 36px 0 40px; border-bottom: 1px solid #1e1e1e; margin-bottom: 40px; }
+  .logo-name { font-family: "Bebas Neue", sans-serif; font-size: 28px; letter-spacing: 0.08em; color: var(--y); }
+  .logo-sub { font-size: 11px; letter-spacing: 0.16em; color: var(--txt2); text-transform: uppercase; margin-top: 6px; }
+
+  .modules { display: flex; flex-direction: column; gap: 3px; }
+
+  .module-card {
+    display: flex; align-items: flex-start; gap: 20px;
+    background: var(--blk2); border: 1px solid #1e1e1e; border-radius: var(--radius);
+    padding: 20px 24px; position: relative; overflow: hidden;
+  }
+  .module-card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--y); border-radius: 0 2px 2px 0;
+  }
+  .module-icon {
+    font-size: 20px; width: 38px; height: 38px; background: var(--grey);
+    border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .module-body { flex: 1; }
+  .module-name { font-family: "Bebas Neue", sans-serif; font-size: 20px; letter-spacing: 0.04em; color: var(--txt); }
+  .module-desc { font-size: 13px; color: #aaa; margin-top: 4px; line-height: 1.5; }
+  .module-meta { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .tag {
+    font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 99px;
+    background: #1e1e1e; color: #777; border: 1px solid #2a2a2a;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .tag.path { font-family: monospace; color: #555; text-transform: none; letter-spacing: 0; }
+
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid #1a1a1a; font-size: 11px; color: #2a2a2a; letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="logo-name">Soundcheck Tools</div>
+    <div class="logo-sub">Internal module overview</div>
+  </header>
+
+  <div class="modules">
+
+    <div class="module-card">
+      <div class="module-icon">⚙️</div>
+      <div class="module-body">
+        <div class="module-name">Admin</div>
+        <div class="module-desc">Permissions dashboard — approve new sign-ups, toggle per-app access per user, view per-record activity history.</div>
+        <div class="module-meta">
+          <span class="tag path">ADMIN/</span>
+          <span class="tag">Flask</span>
+          <span class="tag">Owns login + users.json</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card">
+      <div class="module-icon">📦</div>
+      <div class="module-body">
+        <div class="module-name">Dock Scheduler</div>
+        <div class="module-desc">Scheduling tool for booking and tracking dock/load times.</div>
+        <div class="module-meta">
+          <span class="tag path">DockScheduler/</span>
+          <span class="tag">Flask + SQLite</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card">
+      <div class="module-icon">🅿</div>
+      <div class="module-body">
+        <div class="module-name">Sound Parking</div>
+        <div class="module-desc">Rock Nashville parking reservation software.</div>
+        <div class="module-meta">
+          <span class="tag path">SoundParking/</span>
+          <span class="tag">Node + Flask</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card">
+      <div class="module-icon">💬</div>
+      <div class="module-body">
+        <div class="module-name">Noke the Messenger</div>
+        <div class="module-desc">Internal messenger app.</div>
+        <div class="module-meta">
+          <span class="tag path">NOKEtheMESSENGER/</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card">
+      <div class="module-icon">📊</div>
+      <div class="module-body">
+        <div class="module-name">Noke2Excel</div>
+        <div class="module-desc">Exports Noke Smart Entry locker data (Soundcheckout) to spreadsheet form for reporting.</div>
+        <div class="module-meta">
+          <span class="tag path">noke2excelrevamp/NOKE2EXCEL/</span>
+          <span class="tag">Flask</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card">
+      <div class="module-icon">🫆</div>
+      <div class="module-body">
+        <div class="module-name">Portals</div>
+        <div class="module-desc">Package tracking and maintenance request links, gated behind a single "Noke Messenger" access bit. Superseded the old PTP prototype.</div>
+        <div class="module-meta">
+          <span class="tag path">index.html (TOOLS, accessIndex 3)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card">
+      <div class="module-icon">🪵</div>
+      <div class="module-body">
+        <div class="module-name">Logger</div>
+        <div class="module-desc">Shared activity-log and identity helper. Every module logs actions through this and reads ADMIN's session cookie via SHARED_SECRET to know who's acting.</div>
+        <div class="module-meta">
+          <span class="tag path">Logger/</span>
+          <span class="tag">Shared library</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-card">
+      <div class="module-icon">🚀</div>
+      <div class="module-body">
+        <div class="module-name">Deploy</div>
+        <div class="module-desc">Production nginx config and systemd service units for the deployed modules.</div>
+        <div class="module-meta">
+          <span class="tag path">deploy/</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>Internal use only — not access-gated by app, just by admin login.</footer>
+</div>
+</body>
+</html>

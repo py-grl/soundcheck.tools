@@ -1,0 +1,19 @@
+[Unit]
+Description=DockScheduler (Flask/gunicorn)
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/opt/soundcheck.tools/DockScheduler
+ExecStart=/opt/soundcheck.tools/DockScheduler/.venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:5001 \
+    app:app
+# SECRET_KEY must be IDENTICAL across every Soundcheck service (ADMIN included)
+# so they all verify the same login session and the logger can record who acted.
+Environment="SECRET_KEY=bca5887b84e6d7080497c4d733b742b0911027f0242ebd71bcbd90095be0d019"
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soundcheck Permissions</title>
+  <link rel="stylesheet" href="ADMIN.css" />
+</head>
+<body>
+
+  <div class="header">
+    <h2>Permissions</h2>
+    <div class="header-actions">
+      <a class="btn" href="/admin/n2e-edit">Edit Noke2Excel</a>
+    </div>
+  </div>
+  <p class="sub">Click a cell to toggle app access. Approve pending accounts before they can log in.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="name-col">Name</th>
+          <th><div class="app-badge">Status</div></th>
+          <th><div class="app-badge">Noke</div></th>
+          <th><div class="app-badge">Dock Scheduler</div></th>
+          <th><div class="app-badge">Checkout</div></th>
+          <th><div class="app-badge">Portals</div></th>
+          <th><div class="app-badge">Parking</div></th>
+          <th><div class="app-badge">Noke2Excel</div></th>
+           <th><div class="app-badge">SharePoint</div></th>
+           <th><div class="app-badge">Rock.Community</div></th>
+          <th><div class="app-badge">Admin</div></th>
+         <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-ov" id="hist-modal">
+    <div class="modal-card">
+      <div class="modal-card-hd">
+        <div class="modal-card-title" id="hist-title">History</div>
+        <button class="modal-x" onclick="closeHistory()" aria-label="Close">&times;</button>
+      </div>
+      <div id="hist-content"></div>
+    </div>
+  </div>
+<script src="main.js"></script>
+</body>
+</html>
+

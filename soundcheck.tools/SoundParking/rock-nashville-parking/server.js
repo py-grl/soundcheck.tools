@@ -1,0 +1,236 @@
+// ─────────────────────────────────────────────
+// Rock Nashville Parking — Backend Server
+// ─────────────────────────────────────────────
+// This file is the "waiter" between the app and
+// the database. It listens for requests from
+// browsers and reads/writes reservations.
+// ─────────────────────────────────────────────
+
+const express = require('express');   // web server library
+const Database = require('better-sqlite3'); // SQLite library
+const cors = require('cors');         // allows browsers to talk to this server
+const path = require('path');
+const http = require('http');
+const { logAction, getRecordLogs } = require('./logger');
+
+const app = express();
+const PORT = 3000;
+
+// ── Who is acting? & access control ───────────
+// Parking has no login of its own — ADMIN owns the session and holds the secret.
+// We forward the browser's cookie to ADMIN's /api/me, which validates it and
+// returns the logged-in user ({name, role, access}). We use that both to record
+// *who* made a change AND to gate access: only logged-in users granted "Parking"
+// may use this app. ADMIN_URL points at the ADMIN service, same VPS by default.
+const ADMIN_URL = process.env.ADMIN_URL || 'http://127.0.0.1:5000';
+
+// "Parking" is access index 4 in ADMIN's permissions array (see index.html).
+const PARKING_ACCESS_INDEX = 4;
+
+// Where to bounce visitors who aren't logged in. In production every tool shares
+// the soundcheck.tools domain, so the site root serves ADMIN's login page.
+const LOGIN_URL = process.env.LOGIN_URL || '/';
+
+// Ask ADMIN who this request belongs to. Always resolves (never rejects): the
+// /api/me object ({name, role, access}), or null when not logged in / unreachable.
+function fetchIdentity(req) {
+  return new Promise((resolve) => {
+    const cookie = req.headers.cookie;
+    if (!cookie) return resolve(null);
+
+    let url;
+    try {
+      url = new URL('/api/me', ADMIN_URL);
+    } catch (e) {
+      return resolve(null);
+    }
+
+    const out = http.request(
+      {
+        hostname: url.hostname,
+        port: url.port || 80,
+        path: url.pathname,
+        method: 'GET',
+        headers: { Cookie: cookie },
+        timeout: 1500,
+      },
+      (resp) => {
+        let body = '';
+        resp.on('data', (chunk) => (body += chunk));
+        resp.on('end', () => {
+          if (resp.statusCode !== 200) return resolve(null);
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      }
+    );
+    out.on('error', () => resolve(null));
+    out.on('timeout', () => {
+      out.destroy();
+      resolve(null);
+    });
+    out.end();
+  });
+}
+
+// Gate EVERY request: require a logged-in user who's been granted Parking.
+// Page loads bounce to the login page; API calls get a clean 401/403.
+async function requireParkingAccess(req, res, next) {
+  const me = await fetchIdentity(req);
+  const isApi = req.path.startsWith('/api/');
+  if (!me) {
+    return isApi ? res.status(401).json({ error: 'Not logged in.' }) : res.redirect(LOGIN_URL);
+  }
+  const access = me.access || [];
+  if (!access[PARKING_ACCESS_INDEX]) {
+    return isApi ? res.status(403).json({ error: 'No access to Parking.' }) : res.redirect(LOGIN_URL);
+  }
+  req.parkingUser = me; // stash so handlers can log who acted without re-asking ADMIN
+  next();
+}
+
+// Name of the user behind this request (for logging), or null. Reuses the
+// identity the gate already fetched, so there's no second round-trip.
+function resolveUser(req) {
+  return Promise.resolve((req.parkingUser && req.parkingUser.name) || null);
+}
+
+// ── Middleware ────────────────────────────────
+// These lines tell Express how to handle incoming
+// requests before they reach our routes.
+
+app.use(cors());                          // allow cross-origin requests
+app.use(express.json());                  // parse JSON request bodies
+app.use(requireParkingAccess);            // everything below requires a logged-in Parking user
+app.use(express.static('public'));        // serve the index.html from /public
+
+// ── Database setup ────────────────────────────
+// This creates a file called parking.db in the
+// project folder. If it already exists, it just
+// opens it. Think of it like opening a spreadsheet.
+
+const db = new Database('parking.db');
+
+// Create the reservations table if it doesn't exist yet.
+// SQL is the language databases speak. This says:
+// "Make a table called reservations with these columns,
+//  but only if it doesn't already exist."
+db.exec(`
+  CREATE TABLE IF NOT EXISTS reservations (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    company   TEXT NOT NULL,
+    spots     INTEGER NOT NULL,
+    start     TEXT NOT NULL,
+    end       TEXT,
+    contact   TEXT,
+    lease     TEXT,
+    notes     TEXT,
+    created   TEXT DEFAULT (datetime('now'))
+  )
+`);
+
+console.log('Database ready.');
+
+// ── Routes (API endpoints) ────────────────────
+// A "route" is a URL the app can call.
+// GET  = read data
+// POST = send/save new data
+// DELETE = remove data
+
+// GET /api/reservations
+// Returns every reservation in the database as JSON.
+// The app calls this when it first loads.
+app.get('/api/reservations', (req, res) => {
+  const rows = db.prepare('SELECT * FROM reservations ORDER BY created DESC').all();
+  res.json(rows);
+});
+
+// POST /api/reservations
+// Saves a new reservation sent from the app.
+// req.body contains the data the browser sent.
+app.post('/api/reservations', (req, res) => {
+  const { company, spots, start, end, contact, lease, notes } = req.body;
+
+  // Basic validation — don't save garbage data
+  if (!company || !spots || !start) {
+    return res.status(400).json({ error: 'Company, spots, and start date are required.' });
+  }
+
+  const stmt = db.prepare(`
+    INSERT INTO reservations (company, spots, start, end, contact, lease, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  // The ? marks are placeholders — this prevents SQL injection attacks.
+  // SQL injection is when someone types malicious code into a form field.
+  // Using placeholders means the database treats the input as plain text, never as code.
+  const result = stmt.run(company, spots, start, end || null, contact, lease, notes);
+
+  // Send back the newly created reservation (with its new id)
+  const newRow = db.prepare('SELECT * FROM reservations WHERE id = ?').get(result.lastInsertRowid);
+  res.json(newRow);
+  resolveUser(req).then(user =>
+    logAction('create', { user, source: 'SoundParking', targetType: 'reservation', targetId: newRow.id, detail: `${company} — ${spots} spot(s) starting ${start}` }));
+});
+
+// PUT /api/reservations/:id
+// Updates an existing reservation by its ID.
+app.put('/api/reservations/:id', (req, res) => {
+  const { id } = req.params;
+  const { company, spots, start, end, contact, lease, notes } = req.body;
+
+  if (!company || !spots || !start) {
+    return res.status(400).json({ error: 'Company, spots, and start date are required.' });
+  }
+
+  db.prepare(`
+    UPDATE reservations SET company=?, spots=?, start=?, end=?, contact=?, lease=?, notes=?
+    WHERE id=?
+  `).run(company, spots, start, end || null, contact, lease, notes, id);
+
+  const updated = db.prepare('SELECT * FROM reservations WHERE id = ?').get(id);
+  res.json(updated);
+  resolveUser(req).then(user =>
+    logAction('edit', { user, source: 'SoundParking', targetType: 'reservation', targetId: parseInt(id), detail: `${company} — ${spots} spot(s) starting ${start}` }));
+});
+
+// DELETE /api/reservations/:id
+// Removes a single reservation by its ID.
+// The :id is a URL parameter — e.g. DELETE /api/reservations/42
+app.delete('/api/reservations/:id', (req, res) => {
+  const { id } = req.params;
+  db.prepare('DELETE FROM reservations WHERE id = ?').run(id);
+  res.json({ success: true });
+  resolveUser(req).then(user =>
+    logAction('delete', { user, source: 'SoundParking', targetType: 'reservation', targetId: parseInt(id) }));
+});
+
+// GET /api/history/:type/:id
+// Returns the full change history (created/edited/deleted, etc.)
+// for one record, so the app can show a reservation's timeline.
+app.get('/api/history/:type/:id', (req, res) => {
+  const { type, id } = req.params;
+  res.json(getRecordLogs(type, parseInt(id)));
+});
+
+// ── Catch-all ─────────────────────────────────
+// For any URL that isn't an API route, serve the
+// main index.html. This is what lets the app load
+// when someone visits just the IP address.
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ── Start the server ──────────────────────────
+// This tells Node to start listening for incoming
+// connections on port 3000.
+// Port = a numbered "door" on your server.
+// Port 3000 is a common dev port. Port 80 = HTTP,
+// Port 443 = HTTPS. We'll use 3000 for now.
+app.listen(PORT, () => {
+  console.log(`Rock Nashville Parking running at http://localhost:${PORT}`);
+  console.log('Share your VPS IP address with the team, e.g: http://123.456.78.9:3000');
+});
