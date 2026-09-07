@@ -26,6 +26,11 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
 
+# The public homepage (index.html/tools-main.css/tools-main.js) lives in
+# tools-main/, a sibling of soundcheck.tools/ — kept separate from ADMIN so
+# tools-main/app.py can still serve it standalone for local preview.
+TOOLS_MAIN_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'tools-main')
+
 # lockers.csv is the manually-maintained leasing data the live Noke2Excel app
 # (noke2excelrevamp/NOKE2EXCEL) joins against its live NOKE pull. Edited here,
 # read there — never write the live-pulled columns (Artist Name/contact/phone/
@@ -169,13 +174,21 @@ def require_admin(f):
 def index():
     if 'user_id' not in session:
         return send_from_directory('.', 'LOGIN.SIGNUP.html')
-    return send_from_directory('..', 'index.html')
+    return send_from_directory(TOOLS_MAIN_DIR, 'index.html')
 
 # index.html loads these directly (no auth check — same tradeoff as any
 # publicly-served stylesheet/script; explicit filenames only, never a
 # mounted static folder, per the static_folder=None warning up top).
+@app.route('/tools-main.css')
+def tools_main_css():
+    return send_from_directory(TOOLS_MAIN_DIR, 'tools-main.css')
+
+@app.route('/tools-main.js')
+def tools_main_js():
+    return send_from_directory(TOOLS_MAIN_DIR, 'tools-main.js')
+
 @app.route('/ADMIN.css')
-def main_css():
+def admin_css():
     return send_from_directory('.', 'ADMIN.css')
 
 @app.route('/main.js')
