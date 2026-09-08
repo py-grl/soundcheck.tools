@@ -173,7 +173,7 @@ def require_admin(f):
 @app.route('/')
 def index():
     if 'user_id' not in session:
-        return send_from_directory('.', 'LOGIN.SIGNUP.html')
+        return send_from_directory('.', 'templates/LOGIN.SIGNUP.html')
     return send_from_directory(TOOLS_MAIN_DIR, 'index.html')
 
 # index.html loads these directly (no auth check — same tradeoff as any
