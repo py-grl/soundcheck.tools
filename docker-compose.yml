@@ -1,0 +1,63 @@
+services:
+  admin:
+    build:
+      context: .
+      dockerfile: ADMIN/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./ADMIN/users.json:/app/ADMIN/users.json
+      - ./Logger/logs.db:/app/Logger/logs.db
+    restart: unless-stopped
+
+  dockscheduler:
+    build:
+      context: .
+      dockerfile: DockScheduler/Dockerfile
+    ports:
+      - "5002:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+    env_file:
+      - ./DockScheduler/.env
+    volumes:
+      - ./DockScheduler/dockscheduler.db:/app/DockScheduler/dockscheduler.db
+      - ./Logger/logs.db:/app/Logger/logs.db
+    restart: unless-stopped
+
+  soundparking:
+    build:
+      context: .
+      dockerfile: SoundParking/Dockerfile
+    ports:
+      - "5003:5003"
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      - ./SoundParking/parking.db:/app/SoundParking/parking.db
+      - ./SoundParking/parking.json:/app/SoundParking/parking.json
+      - ./Logger/logs.db:/app/Logger/logs.db
+    restart: unless-stopped
+
+  tools-main:
+    build:
+      context: .
+      dockerfile: tools-main/Dockerfile
+    ports:
+      - "5004:5000"
+    restart: unless-stopped
+
+  noke2excelrevamp:
+    build:
+      context: .
+      dockerfile: noke2excelrevamp/Dockerfile
+    ports:
+      - "5005:5000"
+    env_file:
+      - ./noke2excelrevamp/.env
+    volumes:
+      - ./noke2excelrevamp/spreads:/app/noke2excelrevamp/spreads
+      - ./noke2excelrevamp/lockers.csv:/app/noke2excelrevamp/lockers.csv
+    restart: unless-stopped
