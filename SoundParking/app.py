@@ -5,7 +5,7 @@ import sys
 from flask import Flask, jsonify, redirect, request, send_from_directory, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'Logger'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Logger'))
 from identity import SHARED_SECRET, current_user, current_user_name
 
 from logger import get_record_logs, log_action

@@ -29,7 +29,7 @@ USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
 # The public homepage (index.html/tools-main.css/tools-main.js) lives in
 # tools-main/, a sibling of soundcheck.tools/ — kept separate from ADMIN so
 # tools-main/app.py can still serve it standalone for local preview.
-TOOLS_MAIN_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'tools-main')
+TOOLS_MAIN_DIR = os.path.join(os.path.dirname(__file__), '..', 'tools-main')
 
 # lockers.csv is the manually-maintained leasing data the live Noke2Excel app
 # (noke2excelrevamp/NOKE2EXCEL) joins against its live NOKE pull. Edited here,
