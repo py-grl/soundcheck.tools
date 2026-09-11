@@ -26,6 +26,7 @@ services:
     volumes:
       - ./DockScheduler/instance/dockscheduler.db:/app/DockScheduler/instance/dockscheduler.db
       - ./Logger/logs.db:/app/Logger/logs.db
+      - ./ADMIN/users.json:/app/ADMIN/users.json
     restart: unless-stopped
 
   soundparking:
@@ -34,6 +35,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    environment:
+      # server.js's ADMIN_URL default (127.0.0.1:5000) only worked when
+      # everything ran on bare metal; across containers it must reach ADMIN
+      # by its Compose service name on the shared default network.
+      - ADMIN_URL=http://admin:5000
     volumes:
       - ./SoundParking/parking.db:/app/parking.db
       # logger.js does path.join(__dirname, '..', '..', 'Logger', 'logs.db'),
