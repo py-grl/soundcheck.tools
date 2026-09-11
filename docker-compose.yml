@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: DockScheduler/Dockerfile
     ports:
-      - "5002:5000"
+      - "5001:5000"
     environment:
       - SECRET_KEY=${SECRET_KEY}
     env_file:
@@ -54,7 +54,7 @@ services:
       context: .
       dockerfile: noke2excelrevamp/Dockerfile
     ports:
-      - "5005:5000"
+      - "5002:5000"
     env_file:
       - ./noke2excelrevamp/.env
     volumes:
