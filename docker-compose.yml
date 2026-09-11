@@ -10,6 +10,7 @@ services:
     volumes:
       - ./ADMIN/users.json:/app/ADMIN/users.json
       - ./Logger/logs.db:/app/Logger/logs.db
+      - ./noke2excelrevamp/lockers.csv:/app/noke2excelrevamp/lockers.csv
     restart: unless-stopped
 
   dockscheduler:

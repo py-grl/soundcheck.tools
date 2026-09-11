@@ -37,7 +37,7 @@ TOOLS_MAIN_DIR = os.path.join(os.path.dirname(__file__), '..', 'tools-main')
 # shared users), those come from the NOKE API on every refresh and would just
 # be overwritten.
 LOCKERS_CSV = os.path.join(os.path.dirname(__file__), '..', 'noke2excelrevamp',
-                            'NOKE2EXCEL', 'lockers.csv')
+                            'lockers.csv')
 LOCKERS_EDITABLE_FIELDS = ['Client', 'Size', 'PRICE', 'Sign Lease', 'Billng Entity', 'Email']
 
 COLORS = [

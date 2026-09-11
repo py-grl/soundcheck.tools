@@ -10,12 +10,14 @@ COPY ADMIN/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # ADMIN/app.py reaches out of its own folder for the shared Logger module
-# (sys.path.insert(..., '../Logger')) and serves tools-main's static files
-# after login (send_from_directory('../tools-main', ...)), so all three
-# sibling folders get copied in, preserving that same relative layout.
+# (sys.path.insert(..., '../Logger')), serves tools-main's static files after
+# login (send_from_directory('../tools-main', ...)), and reads/writes the
+# locker CSV that noke2excelrevamp also owns (LOCKERS_CSV) — all sibling
+# folders get copied in, preserving that same relative layout.
 COPY ADMIN/ ./ADMIN/
 COPY Logger/ ./Logger/
 COPY tools-main/ ./tools-main/
+COPY noke2excelrevamp/ ./noke2excelrevamp/
 
 WORKDIR /app/ADMIN
 
