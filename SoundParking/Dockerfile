@@ -1,15 +1,20 @@
-FROM python:3.14-slim
+# This is the live app (Node/Express), not the Flask app.py sitting alongside
+# it in this folder — confirmed against the production server, where nginx
+# proxies /parking to this exact server.js on port 3000.
+FROM node:20-slim
 
 WORKDIR /app
 
-COPY SoundParking/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+# better-sqlite3 is a native addon and needs to compile during npm install.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY SoundParking/ ./SoundParking/
-COPY Logger/ ./Logger/
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-WORKDIR /app/SoundParking
+COPY server.js logger.js ./
+COPY public/ ./public/
 
-EXPOSE 5003
+EXPOSE 3000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5003", "app:app"]
+CMD ["node", "server.js"]

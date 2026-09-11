@@ -23,22 +23,22 @@ services:
     env_file:
       - ./DockScheduler/.env
     volumes:
-      - ./DockScheduler/dockscheduler.db:/app/DockScheduler/dockscheduler.db
+      - ./DockScheduler/instance/dockscheduler.db:/app/DockScheduler/instance/dockscheduler.db
       - ./Logger/logs.db:/app/Logger/logs.db
     restart: unless-stopped
 
   soundparking:
     build:
-      context: .
-      dockerfile: SoundParking/Dockerfile
+      context: ./SoundParking
+      dockerfile: Dockerfile
     ports:
-      - "5003:5003"
-    environment:
-      - SECRET_KEY=${SECRET_KEY}
+      - "3000:3000"
     volumes:
-      - ./SoundParking/parking.db:/app/SoundParking/parking.db
-      - ./SoundParking/parking.json:/app/SoundParking/parking.json
-      - ./Logger/logs.db:/app/Logger/logs.db
+      - ./SoundParking/parking.db:/app/parking.db
+      # logger.js does path.join(__dirname, '..', '..', 'Logger', 'logs.db'),
+      # which from /app resolves to /Logger/logs.db (matches the /home/Logger
+      # symlink trick already in prod), not a normal project-relative path.
+      - ./Logger/logs.db:/Logger/logs.db
     restart: unless-stopped
 
   tools-main:
