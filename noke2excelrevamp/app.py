@@ -30,6 +30,10 @@ _LOCKER_PREFIX = re.compile(r"^\s*L\d+\s*(?:/\s*L?\d+\s*)*[-–]?\s*")
 # Must match main3.py's OUTPUT_DIR — that's the script that writes the files.
 SPREADS_DIR = Path(__file__).parent / "spreads"
 
+# Leasing data edited from ADMIN's "Edit Noke2Excel" page. Lives in its own
+# folder because docker-compose mounts the folder (shared with ADMIN).
+LOCKERS_CSV = Path(__file__).parent / "data" / "lockers.csv"
+
 # How often the background thread refreshes the cached units (seconds).
 REFRESH_SECONDS = 300  # 5 minutes
 
@@ -50,7 +54,7 @@ def load_locker_info():
     the join still finds the row.
     """
     lockers = {}
-    with open("lockers.csv", newline="", encoding="utf-8") as f:
+    with open(LOCKERS_CSV, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             parts = [p.strip() for p in row["locker_id"].split("/") if p.strip()]
             prefix = ""
@@ -74,11 +78,21 @@ def get_units():
     response = requests.post(BASE_URL + UNITS_PATH, headers=headers,
                              json={"filter": UNIT_FILTERS}, timeout=10)
     units = extract_unit_info(response.json(), token)
-    lockers = load_locker_info()
     for unit in units:
-        unit["locker"] = lockers.get(unit["unit_id"], {})
         unit["artist_name"] = artist_from_name(unit["unit_name"])
     return units
+
+
+def join_lockers(units):
+    """Attach each unit's lockers.csv row.
+
+    Done per page load rather than in the 5-minute cache refresh, so edits
+    pushed from ADMIN show up on the next reload. The CSV is tiny, so
+    re-reading it each request is cheap. Returns new dicts so the shared
+    cache is never mutated.
+    """
+    lockers = load_locker_info()
+    return [{**u, "locker": lockers.get(u["unit_id"], {})} for u in units]
 
 
 def refresh_cache():
@@ -126,7 +140,8 @@ def home():
     with _cache_lock:
         units = _cache["units"]
         updated_at = _cache["updated_at"]
-    return render_template("index.html", units=units, updated_at=updated_at)
+    return render_template("index.html", units=join_lockers(units),
+                           updated_at=updated_at)
 
 
 @app.route("/pastmonths")

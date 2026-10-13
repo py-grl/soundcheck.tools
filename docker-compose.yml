@@ -3,14 +3,21 @@ services:
     build:
       context: .
       dockerfile: ADMIN/Dockerfile
+    # Every port is bound to 127.0.0.1 so only nginx on this box can reach
+    # the apps. A bare "5000:5000" publishes on 0.0.0.0 and Docker punches
+    # through the firewall, letting anyone hit IP:port and skip nginx's
+    # auth_request login checks.
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     environment:
       - SECRET_KEY=${SECRET_KEY}
     volumes:
       - ./ADMIN/users.json:/app/ADMIN/users.json
       - ./Logger/logs.db:/app/Logger/logs.db
-      - ./noke2excelrevamp/lockers.csv:/app/noke2excelrevamp/lockers.csv
+      # Mount the folder, not lockers.csv itself: save_lockers() swaps in a
+      # temp file with os.replace, and renaming over a single-file bind mount
+      # fails with "Device or resource busy".
+      - ./noke2excelrevamp/data:/app/noke2excelrevamp/data
     restart: unless-stopped
 
   dockscheduler:
@@ -18,7 +25,7 @@ services:
       context: .
       dockerfile: DockScheduler/Dockerfile
     ports:
-      - "5001:5000"
+      - "127.0.0.1:5001:5000"
     environment:
       - SECRET_KEY=${SECRET_KEY}
     env_file:
@@ -34,7 +41,7 @@ services:
       context: ./SoundParking
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       # server.js's ADMIN_URL default (127.0.0.1:5000) only worked when
       # everything ran on bare metal; across containers it must reach ADMIN
@@ -53,7 +60,7 @@ services:
       context: .
       dockerfile: tools-main/Dockerfile
     ports:
-      - "5004:5000"
+      - "127.0.0.1:5004:5000"
     restart: unless-stopped
 
   noke2excelrevamp:
@@ -61,10 +68,11 @@ services:
       context: .
       dockerfile: noke2excelrevamp/Dockerfile
     ports:
-      - "5002:5000"
+      - "127.0.0.1:5002:5000"
     env_file:
       - ./noke2excelrevamp/.env
     volumes:
       - ./noke2excelrevamp/spreads:/app/noke2excelrevamp/spreads
-      - ./noke2excelrevamp/lockers.csv:/app/noke2excelrevamp/lockers.csv
+      # Same folder ADMIN writes to, so edits show up here immediately.
+      - ./noke2excelrevamp/data:/app/noke2excelrevamp/data
     restart: unless-stopped

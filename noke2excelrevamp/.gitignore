@@ -2,3 +2,6 @@
 .venv/
 __pycache__/
 *.pyc
+# Backup/temp files ADMIN's lockers editor leaves next to data/lockers.csv
+data/*.bak
+data/*.tmp
