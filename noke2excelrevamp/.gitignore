@@ -2,6 +2,9 @@
 .venv/
 __pycache__/
 *.pyc
-# Backup/temp files ADMIN's lockers editor leaves next to data/lockers.csv
+# Live leasing data, edited through ADMIN's "Edit Noke2Excel" page. The
+# server's copy is the real one, so git must not track it (pulls would
+# conflict with every admin edit). Same for the editor's backup/temp files.
+data/lockers.csv
 data/*.bak
 data/*.tmp

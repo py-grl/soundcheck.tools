@@ -74,8 +74,11 @@
             {% for r in day_reservations %}
             {
                 id:        {{ r.id }},
-                name:      "{{ (r.name or '') | replace('"', '&quot;') }}",
-                company:   "{{ (r.company or '') | replace('"', '&quot;') }}",
+                {# tojson writes a correctly escaped JS string (quotes included);
+                   hand-escaping missed the \r in multi-line notes, which is a
+                   SyntaxError that killed the whole script and every click. #}
+                name:      {{ (r.name or '') | tojson }},
+                company:   {{ (r.company or '') | tojson }},
                 dock:      "{{ r.dock_number }}",
                 type:      "{{ r.dock_type }}",
                 startDate: "{{ r.start_date }}",
@@ -83,7 +86,7 @@
                 allDay:    {{ 'true' if r.all_day else 'false' }},
                 arrival:   "{{ r.start_time.strftime('%I:%M %p') }}",
                 departure: "{{ r.end_time.strftime('%I:%M %p') }}",
-                notes:     "{{ (r.notes or '') | replace('"', '&quot;') | replace('\n', ' ') }}",
+                notes:     {{ (r.notes or '') | tojson }},
                 color:     "{{ dock_colors.get(r.dock_number.split(',')[0].strip(), res_colors[r.id]) }}",
             },
             {% endfor %}
@@ -92,6 +95,14 @@
     };
     const calYear  = {{ year }};
     const calMonth = {{ month }};
+
+    // name/company/notes are raw text now (via tojson), so escape them before
+    // they go into innerHTML, or a "<" in a note would be parsed as HTML.
+    function esc(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
 
     function openModal(day) {
         const dateStr = calYear + '-' + String(calMonth).padStart(2,'0') + '-' + String(day).padStart(2,'0');
@@ -109,13 +120,13 @@
                 const dateRange = r.startDate === r.endDate
                     ? r.startDate : r.startDate + ' → ' + r.endDate;
                 const timeStr = r.allDay ? 'All Day' : r.arrival + ' – ' + r.departure;
-                const label   = r.company || r.name || 'Reservation';
-                const sub     = r.company && r.name ? ' — ' + r.name : '';
+                const label   = esc(r.company || r.name || 'Reservation');
+                const sub     = r.company && r.name ? ' — ' + esc(r.name) : '';
                 html += `<div class="modal-reservation" style="border-left:4px solid ${r.color}; padding-left:12px; margin-bottom:12px;">
                     <strong style="color:${r.color}">${label}</strong>${sub}<br>
                     Dock ${r.dock} (${r.type})<br>
                     ${dateRange} &nbsp;|&nbsp; ${timeStr}
-                    ${r.notes ? '<br><em style="color:#aaa">' + r.notes + '</em>' : ''}
+                    ${r.notes ? '<br><em style="color:#aaa">' + esc(r.notes) + '</em>' : ''}
                       <a href="${URLS.edit}${r.id}" class="btn btn-secondary" style="margin-top:8px; display:inline-block;">Edit</a>
 
                 </div>`;
