@@ -1,5 +1,6 @@
 import concurrent.futures
 import os
+import re
 import sys
 import time
 from datetime import datetime
@@ -98,6 +99,29 @@ def get_shared_users(token: str, unit_uuid: str) -> list:
        return []
 
 # ─── Parse units into clean list ──────────────────────────────────────────
+# First locker id in a unit name, e.g. "L121" from "L121 / L154 - Artist".
+_NAME_LOCKER_ID = re.compile(r"^\s*(L\d+)", re.IGNORECASE)
+
+
+def locker_id_for(unit_name: str, external_id: str) -> str:
+    """Locker id for a unit — the spreadsheet's unit_id and the lockers.csv key.
+
+    Prefer the id at the start of the unit name: Noke's External ID is typed
+    by hand and has been wrong before (the "L028" unit carried External ID
+    L208, so it picked up Bailey Zimmerman's row). Fall back to the External
+    ID only when the name has no id. Never fall back on a mismatch, or the bad
+    External ID would still win whenever the name's id isn't in the CSV.
+    """
+    match = _NAME_LOCKER_ID.match(unit_name or "")
+    if not match:
+        return external_id
+    name_id = match.group(1).upper()
+    if re.fullmatch(r"L\d+", external_id or "") and external_id != name_id:
+        print(f"Locker id mismatch: unit {unit_name!r} has External ID "
+              f"{external_id!r}; using {name_id!r} — fix the External ID in Noke")
+    return name_id
+
+
 def extract_unit_info(data, token: str, max_workers: int = 10):
     """
     Extracts rentable unit info in parallel.
@@ -130,7 +154,7 @@ def extract_unit_info(data, token: str, max_workers: int = 10):
                 shared_users = get_shared_users(token, unit_uuid)
 
         return {
-            "unit_id":      unit.get("externalId", ""),
+            "unit_id":      locker_id_for(unit.get("name", ""), unit.get("externalId", "")),
             "unit_name":    unit.get("name", ""),
             "rental_state": unit.get("rentalState", ""),
             "first_name":   user.get("firstName", ""),
