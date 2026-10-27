@@ -9,7 +9,8 @@ from zoneinfo import ZoneInfo
 
 import requests
 from flask import Flask, abort, render_template, send_from_directory
-from main3 import BASE_URL, UNIT_FILTERS, UNITS_PATH, extract_unit_info, login
+from main3 import (BASE_URL, UNIT_FILTERS, UNITS_PATH, extract_unit_info,
+                   login, save_spreadsheets)
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # See main3.py: Windows console isn't UTF-8 by default, which crashes prints
@@ -59,6 +60,11 @@ def load_locker_info():
             parts = [p.strip() for p in row["locker_id"].split("/") if p.strip()]
             prefix = ""
             for p in parts:
+                # Keep only the id itself, so "L455 (5x20)" keys as "L455".
+                m = re.match(r"L?\d+", p, re.IGNORECASE)
+                if not m:
+                    continue
+                p = m.group(0).upper()
                 if not p[0].isdigit():
                     prefix = p[0]  # carry the "L" across bare-number parts ("L133/134")
                 locker_id = p if p[0].isdigit() is False else prefix + p
@@ -102,6 +108,13 @@ def refresh_cache():
         _cache["units"] = units
         _cache["updated_at"] = datetime.now(CENTRAL)
     print(f"Cache refreshed at {datetime.now(CENTRAL):%H:%M:%S} — {len(units)} units")
+    # The Docker container only runs this app, never main3.py's loop, so the
+    # spreadsheets have to be written from here or Download/Past Months 404.
+    if units:
+        try:
+            save_spreadsheets(units, datetime.now(CENTRAL).replace(tzinfo=None))
+        except Exception as e:
+            print(f"Spreadsheet save failed (page still works): {e}")
 
 
 def _refresh_loop():
@@ -152,8 +165,14 @@ def past_months():
 @app.route("/download/current")
 def download_current():
     """Download this month's live spreadsheet (Current_<Month>_<Year>.xlsx)."""
-    month_year = datetime.today().strftime("%B_%Y")  # e.g. "June_2026"
-    filename = f"Current_{month_year}.xlsx"
+    now = datetime.now(CENTRAL).replace(tzinfo=None)
+    filename = f"Current_{now:%B_%Y}.xlsx"  # e.g. "Current_June_2026.xlsx"
+    if not (SPREADS_DIR / filename).exists():
+        # First download of a new month: build it from the cache instead of 404.
+        with _cache_lock:
+            units = _cache["units"]
+        if units:
+            save_spreadsheets(units, now)
     if not (SPREADS_DIR / filename).exists():
         abort(404)
     return send_from_directory(SPREADS_DIR, filename, as_attachment=True)

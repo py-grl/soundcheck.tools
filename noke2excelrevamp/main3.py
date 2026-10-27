@@ -1,6 +1,7 @@
 import concurrent.futures
 import os
 import re
+import shutil
 import sys
 import time
 from datetime import datetime
@@ -122,6 +123,45 @@ def locker_id_for(unit_name: str, external_id: str) -> str:
     return name_id
 
 
+# Whole leading id block of a unit name, e.g. "L228 / L244" from
+# "L228 / L244 - Breit Group". Shared-door units list every locker they cover.
+_NAME_ID_BLOCK = re.compile(r"^\s*(L\d+(?:\s*/\s*L?\d+)*)", re.IGNORECASE)
+
+
+def extra_locker_ids(unit_name: str) -> list[str]:
+    """Locker ids after the first one in a shared-door unit name.
+
+    "L228 / L244 - Breit Group" -> ["L244"]. Noke keeps a shared door as ONE
+    unit, so without this the second locker never gets its own row.
+    """
+    match = _NAME_ID_BLOCK.match(unit_name or "")
+    if not match:
+        return []
+    ids = ["L" + n for n in re.findall(r"\d+", match.group(1))]
+    return ids[1:]
+
+
+def expand_shared_doors(units: list[dict]) -> list[dict]:
+    """Give every locker in a shared-door unit its own row.
+
+    Each extra locker gets a copy of the unit's live data with its own
+    unit_id. Skipped if Noke already lists that locker as its own unit, so
+    nothing is duplicated. Result is sorted by locker number.
+    """
+    own_ids = {u["unit_id"] for u in units}
+    expanded = list(units)
+    for u in units:
+        for extra in extra_locker_ids(u["unit_name"]):
+            if extra not in own_ids:
+                expanded.append({**u, "unit_id": extra})
+                own_ids.add(extra)
+
+    def sort_key(u):
+        m = re.fullmatch(r"L(\d+)", u["unit_id"] or "")
+        return (0, int(m.group(1))) if m else (1, u["unit_id"] or "")
+    return sorted(expanded, key=sort_key)
+
+
 def extract_unit_info(data, token: str, max_workers: int = 10):
     """
     Extracts rentable unit info in parallel.
@@ -169,8 +209,9 @@ def extract_unit_info(data, token: str, max_workers: int = 10):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = executor.map(process_unit, units)
 
-    # Filter out None (non‐rentable units) and return list
-    return [entry for entry in results if entry is not None]
+    # Filter out None (non‐rentable units), then split shared doors into
+    # one row per locker.
+    return expand_shared_doors([entry for entry in results if entry is not None])
 
 # ─── Excel helpers ─────────────────────────────────────────────────────────
 def write_df_preserve_formatting(path: str, df: pd.DataFrame, sheet_name: str = "Sheet1"):
@@ -246,6 +287,63 @@ def write_df_preserve_formatting(path: str, df: pd.DataFrame, sheet_name: str = 
 
 
 # ─── Main flow ─────────────────────────────────────────────────────────────
+def units_to_rows(units: list[dict]) -> list[dict]:
+    """Flatten units for Excel without touching the caller's dicts.
+
+    `shared_users` becomes a comma-separated names list and
+    `shared_user_phones` a comma-separated phone list, in API order.
+    """
+    rows = []
+    for u in units:
+        names, phones = [], []
+        for su in u.get("shared_users") or []:
+            fn = (su.get("first_name") or "").strip()
+            ln = (su.get("last_name") or "").strip()
+            if fn or ln:
+                names.append(f"{fn} {ln}".strip())
+            phone = (su.get("phone") or "").strip()
+            if phone:
+                phones.append(phone)
+        rows.append({**u, "shared_users": ", ".join(names),
+                     "shared_user_phones": ", ".join(phones)})
+    return rows
+
+
+def save_spreadsheets(units: list[dict], today: datetime | None = None):
+    """Write this month's live file and any monthly snapshots that are due.
+
+    - Current_<Month>_<Year>.xlsx is always overwritten with fresh data.
+    - From the 19th on, <Month>_<Year>.xlsx is saved once if it doesn't exist
+      yet. (The old "only on the 19th" check missed every month the job
+      wasn't running at the exact moment.)
+    - Any past month that has a Current_ file but no snapshot gets its last
+      Current_ file promoted to the snapshot, so months never go missing.
+    """
+    today = today or datetime.today()
+    month_year = today.strftime("%B_%Y")
+    df = pd.DataFrame(units_to_rows(units))
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    live_path = OUTPUT_DIR / f"Current_{month_year}.xlsx"
+    write_df_preserve_formatting(str(live_path), df)
+
+    archive_path = OUTPUT_DIR / f"{month_year}.xlsx"
+    if today.day >= 19 and not archive_path.exists():
+        print(f"Saving monthly snapshot to: {archive_path}")
+        df.to_excel(archive_path, index=False)
+
+    this_month = today.replace(day=1).date()
+    for p in OUTPUT_DIR.glob("Current_*.xlsx"):
+        try:
+            dt = datetime.strptime(p.stem.removeprefix("Current_"), "%B_%Y")
+        except ValueError:
+            continue
+        snapshot = OUTPUT_DIR / f"{dt:%B_%Y}.xlsx"
+        if dt.date() < this_month and not snapshot.exists():
+            print(f"Promoting {p.name} to snapshot {snapshot.name}")
+            shutil.copyfile(p, snapshot)
+
+
 def run_once():
     print(f"\n=== Refresh run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===")
     print("Logging in fresh to get new token...")
@@ -272,44 +370,7 @@ def run_once():
 
         print(f"\nFound {len(units_list)} rentable units.")
 
-        # Keep `shared_users` as a comma-separated names list (like before),
-        # and add `shared_user_phones` as a comma-separated phone list
-        # in the exact order returned by the API.
-        for u in units_list:
-            names = []
-            phones = []
-            for su in u.get("shared_users", []):
-                fn = su.get("first_name", "").strip()
-                ln = su.get("last_name", "").strip()
-                if fn or ln:
-                    names.append(f"{fn} {ln}".strip())
-
-                phone = su.get("phone", "").strip()
-                if phone:
-                    phones.append(phone)
-
-            u["shared_users"] = ", ".join(names)
-            u["shared_user_phones"] = ", ".join(phones)
-
-        print("\nWriting to Excel...")
-        df = pd.DataFrame(units_list)
-
-        # Use current month/year in filenames
-        today = datetime.today()
-        month_year = today.strftime("%B_%Y")  # e.g. "March_2026"
-
-        # Make sure the output folder exists, then always overwrite the
-        # main/live spreadsheet for this month, keeping the workbook formatting.
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        live_path = str(OUTPUT_DIR / f"Current_{month_year}.xlsx")
-        print(f"Saving live file to: {live_path}")
-        write_df_preserve_formatting(live_path, df)
-
-        # On the 19th of each month, also save a crystallized month/year copy
-        if today.day == 19:
-            archive_path = str(OUTPUT_DIR / f"{month_year}.xlsx")
-            print(f"Also saving monthly snapshot to: {archive_path}")
-            df.to_excel(archive_path, index=False)
+        save_spreadsheets(units_list)
 
     except requests.RequestException as e:
         print(f"Units request failed: {e}")
