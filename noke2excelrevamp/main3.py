@@ -146,7 +146,7 @@ def expand_shared_doors(units: list[dict]) -> list[dict]:
 
     Each extra locker gets a copy of the unit's live data with its own
     unit_id. Skipped if Noke already lists that locker as its own unit, so
-    nothing is duplicated. Result is sorted by locker number.
+    nothing is duplicated. Rows come back grouped by lease (see sort_by_lease).
     """
     own_ids = {u["unit_id"] for u in units}
     expanded = list(units)
@@ -156,10 +156,94 @@ def expand_shared_doors(units: list[dict]) -> list[dict]:
                 expanded.append({**u, "unit_id": extra})
                 own_ids.add(extra)
 
+    return sort_by_lease(expanded)
+
+
+# Leasing data edited from ADMIN (same file app.py reads).
+LOCKERS_CSV = Path(__file__).parent / "data" / "lockers.csv"
+
+
+def _csv_ids(locker_id: str) -> list[str]:
+    """Locker ids in a lockers.csv key: "L402/L404/L443" -> [L402, L404, L443].
+
+    Handles bare numbers ("L133/134") and trailing notes ("L455 (5x20)").
+    """
+    ids = []
+    for part in (locker_id or "").split("/"):
+        m = re.match(r"\s*L?(\d+)", part, re.IGNORECASE)
+        if m:
+            ids.append("L" + m.group(1))
+    return ids
+
+
+def lease_info() -> tuple[dict[str, str], set[str]]:
+    """Read lockers.csv for grouping.
+
+    Returns (leaders, followers):
+    - leaders maps each locker in a combined row ("L447/L446") to that row's
+      first id, its main locker.
+    - followers is every locker whose own row says "see above"/"see below",
+      so it can sort under the real row even when nothing names a main locker.
+    """
+    import csv
+    leaders, clients, entities = {}, {}, {}
+    try:
+        with open(LOCKERS_CSV, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                ids = _csv_ids(row.get("locker_id", ""))
+                client = (row.get("Client") or "").strip().lower()
+                entity = (row.get("Billng Entity") or "").strip().lower()
+                for i in ids:
+                    clients[i] = client  # last row wins, same as app.py's join
+                    entities[i] = entity
+                if len(ids) > 1 and not client.startswith("see "):
+                    for i in ids:
+                        leaders.setdefault(i, ids[0])
+    except OSError as e:
+        print(f"Couldn't read {LOCKERS_CSV} for grouping: {e}")
+    followers = {i for i, c in clients.items() if c.startswith("see ")}
+
+    # A "see above" row whose main row is a single locker (L554 under L552
+    # Hank Williams) isn't linked by any combined row. Pair it with the
+    # closest lower-numbered real row billed to the same entity.
+    def n(i):
+        return int(i[1:])
+    for fid in followers - leaders.keys():
+        ent = entities.get(fid)
+        mains = [i for i, e in entities.items()
+                 if ent and e == ent and i not in followers]
+        if mains:
+            below = [i for i in mains if n(i) < n(fid)]
+            leaders[fid] = max(below, key=n) if below else min(mains, key=n)
+    return leaders, followers
+
+
+def sort_by_lease(units: list[dict]) -> list[dict]:
+    """Order rows so every lease's lockers sit together, real row first.
+
+    Groups are keyed by the lease's main locker (from lockers.csv, else the
+    first id in the Noke unit name: "L228 / L244 - Breit Group" -> L228) and
+    ordered by its number. Inside a group the real row comes first, then the
+    "see above" rows, each by locker number.
+    """
+    leaders, followers = lease_info()
+
+    def num(locker_id):
+        m = re.fullmatch(r"L(\d+)", locker_id or "")
+        return int(m.group(1)) if m else None
+
     def sort_key(u):
-        m = re.fullmatch(r"L(\d+)", u["unit_id"] or "")
-        return (0, int(m.group(1))) if m else (1, u["unit_id"] or "")
-    return sorted(expanded, key=sort_key)
+        uid = u.get("unit_id") or ""
+        if num(uid) is None:
+            return (1, 0, 0, 0, uid)  # odd ids go to the bottom
+        leader = leaders.get(uid)
+        if not leader:
+            m = _NAME_ID_BLOCK.match(u.get("unit_name") or "")
+            leader = ("L" + re.findall(r"\d+", m.group(1))[0]) if m else uid
+        return (0, num(leader) or num(uid), 1 if uid in followers else 0,
+                num(uid), uid)
+
+    return sorted(units, key=sort_key)
 
 
 def extract_unit_info(data, token: str, max_workers: int = 10):
@@ -321,7 +405,7 @@ def save_spreadsheets(units: list[dict], today: datetime | None = None):
     """
     today = today or datetime.today()
     month_year = today.strftime("%B_%Y")
-    df = pd.DataFrame(units_to_rows(units))
+    df = pd.DataFrame(units_to_rows(sort_by_lease(units)))
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     live_path = OUTPUT_DIR / f"Current_{month_year}.xlsx"

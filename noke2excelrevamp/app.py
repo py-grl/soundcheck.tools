@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import requests
 from flask import Flask, abort, render_template, send_from_directory
 from main3 import (BASE_URL, UNIT_FILTERS, UNITS_PATH, extract_unit_info,
-                   login, save_spreadsheets)
+                   login, save_spreadsheets, sort_by_lease)
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # See main3.py: Windows console isn't UTF-8 by default, which crashes prints
@@ -98,7 +98,10 @@ def join_lockers(units):
     cache is never mutated.
     """
     lockers = load_locker_info()
-    return [{**u, "locker": lockers.get(u["unit_id"], {})} for u in units]
+    # Re-group here too, so a combined lease edited in ADMIN regroups on the
+    # next reload instead of waiting for the 5-minute refresh.
+    return [{**u, "locker": lockers.get(u["unit_id"], {})}
+            for u in sort_by_lease(units)]
 
 
 def refresh_cache():
