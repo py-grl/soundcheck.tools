@@ -344,6 +344,8 @@ def write_df_preserve_formatting(path: str, df: pd.DataFrame, sheet_name: str = 
         cell = ws.cell(row=1, column=col_idx)
         cell.value = col_name
 
+    # Write xlsx
+
     # Write data starting from row 2
     for r_idx, (_, row) in enumerate(df.iterrows(), start=2):
         for c_idx, value in enumerate(row, start=1):

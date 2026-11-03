@@ -10,10 +10,13 @@
 <div class="header">
     <h1>Rock Nashville Lockers</h1>
     <div class="header-actions">
-        <a href="{{ url_for('download_current') }}" class="past-months-btn">Download XLSX</a>
         <a href="{{ url_for('past_months') }}" class="past-months-btn">Past Months</a>
+        <a href="{{ url_for('download_current') }}" class="past-months-btn">Download XLSX</a>
+        <a href="{{ url_for('netsuite_download')}}" class="past-months-btn">Netsuite Download</a>
+
     </div>
 </div>
+
 <p>Found {{ units|length }} rentable units 🔒
     <input type="text" id="search" placeholder="Search lockers, artists, emails..."
            style="max-width: 360px; margin: 12px 0;">

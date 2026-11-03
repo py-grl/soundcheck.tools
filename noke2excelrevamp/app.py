@@ -6,9 +6,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
+import io
 
 import requests
-from flask import Flask, abort, render_template, send_from_directory
+from flask import Flask, abort, render_template, send_from_directory, Response
 from main3 import (BASE_URL, UNIT_FILTERS, UNITS_PATH, extract_unit_info,
                    login, save_spreadsheets, sort_by_lease)
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -55,9 +56,11 @@ def load_locker_info():
     the join still finds the row.
     """
     lockers = {}
+    exact = set()  # ids that have a row of their own
     with open(LOCKERS_CSV, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             parts = [p.strip() for p in row["locker_id"].split("/") if p.strip()]
+            single = len(parts) == 1
             prefix = ""
             for p in parts:
                 # Keep only the id itself, so "L455 (5x20)" keys as "L455".
@@ -68,7 +71,14 @@ def load_locker_info():
                 if not p[0].isdigit():
                     prefix = p[0]  # carry the "L" across bare-number parts ("L133/134")
                 locker_id = p if p[0].isdigit() is False else prefix + p
-                lockers[locker_id] = row
+                # A locker's own row ("L446 see above") always wins over a
+                # combined row that also lists it ("L447/L446 Bilmuri"), so a
+                # combined row never shows its price twice.
+                if single:
+                    lockers[locker_id] = row
+                    exact.add(locker_id)
+                elif locker_id not in exact:
+                    lockers[locker_id] = row
     return lockers
 
 
@@ -187,6 +197,73 @@ def download_spreadsheet(filename):
     if not filename.endswith(".xlsx"):
         abort(404)
     return send_from_directory(SPREADS_DIR, filename, as_attachment=True)
+
+
+# Netsuite invoice import
+#this part of the program makes the netsuite download button functional
+
+NETSUITE_HEADER = [
+    "externalID", "Invoice #", "Customer", "Terms", "Due Date", "Posting Period", "Item",
+    "ITEM - NON MAPPING", "CAM RATE - NON Mapping", "SUITE_UNIT - NON MAPPING", "Line Item Description",
+    "ReLeased Rent - NON MAPPING", "Re-Leased SF Non Mapping", "Rate",
+    "Quanity", "Class", "Account", "Account Number", "Subsidiary Internal ID",
+    "Subsidiary Name", "Geography", "Monthly Recurring"
+]
+
+def _money(text):
+    """"$1,500.00" -> 1500.0; blank or junk -> 0.0."""
+    try:
+        return float(re.sub(r"[^\d.]", "", text or "")or 0)
+    except ValueError:
+        return 0.0
+
+def _first_locker_number(locker_id):
+    """"L402/L404"-> 402, so lines sort by locker number."""
+    m = re.search(r"\d+", locker_id or "")
+    return int(m.group(0)) if m else 10**9
+
+def netsuite_rows(today):
+    """One invoice line per billable lease in lockers.csv
+
+Billable = a real row (not "see above") with a price over $0, so shared doors, SoundCheck's own
+lockers and comped lockers are left out. Customer is the billing entity, which has to match the
+NetSuite customer name.
+"""
+    with open(LOCKERS_CSV, newline="", encoding="utf-8") as f:
+        leases = [r for r in csv.DictReader(f)
+              if not (r.get("Client") or "").strip().lower().startswith("see")
+              and _money(r.get("PRICE")) > 0]
+    leases.sort(key=lambda r: _first_locker_number(r["locker_id"]))
+
+    period = f"{today:%b %y}"  #"nov 26"
+    due = f"{today.month}/{today.day}/{today.year}"
+    stamp = f"{today.month}/{today.day}/{today:%y}"
+    rows = []
+    for r in leases:
+        suite = r["locker_id"].replace("\u200b","").strip()
+        customer = (r.get("Billng Entity") or "").strip()  # CSV header is misspelled
+        rate = f"{_money(r.get('PRICE')):,.2f}"
+        rows.append([
+            f"{stamp} {customer} - Tennessee", "", customer, "Due on Receipt",
+            due, period, "Rental Income - Storage", "Rent", "", suite,
+            f"{period} Rent Locker {suite}", rate, "", rate, "1",
+            "Operating", "Accounts Receivable", "120000", "20", "Soundcheck",
+            "Tennessee", "TRUE",
+        ])
+    return rows
+
+@app.route("/download/netsuite")
+def netsuite_download():
+    """Download this month's NetSuite locker invoice import as a csv"""
+    today = datetime.now(CENTRAL)
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\r\n") #template
+    writer.writerow(NETSUITE_HEADER)
+    writer.writerows(netsuite_rows(today))
+    filename= f"Nashville_Locker_Netsuite_Import_{today:%Y%m%d}.csv"
+    return Response(buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition":
+                             f'attachment; filename="{filename}"'})
 
 
 def start_background_refresh():
