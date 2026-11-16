@@ -174,7 +174,7 @@ tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
 <div class="hdr">
   <div class="hdr-left">
     <div class="hdr-icon">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <svg width="25" height="20" viewBox="0 0 24 24" fill="none">
         <rect x="3" y="5" width="18" height="14" rx="2" fill="#111"/>
         <path d="M7 10h4c1.1 0 2 .9 2 2s-.9 2-2 2H7V10z" fill="#fff200"/>
         <path d="M11 14l3 4" stroke="#fff200" stroke-width="1.5" stroke-linecap="round"/>
@@ -238,10 +238,10 @@ tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
       <table>
         <thead><tr>
           <th>Company</th><th>Spots</th><th>Start</th><th>End</th>
-          <th>Contact</th><th>Lease</th><th>Status</th><th>Notes</th><th></th>
+          <th>Contact</th><th>Duration</th><th>Lease</th><th>Status</th><th>Order #</th><th></th>
         </tr></thead>
         <tbody id="res-tbody">
-          <tr class="empty-row"><td colspan="9">Loading...</td></tr>
+          <tr class="empty-row"><td colspan="10">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -261,6 +261,12 @@ tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
         <input type="date" id="f-end"></div>
       <div class="fi"><label>Contact</label>
         <input type="text" id="f-contact" placeholder="e.g. Chris Serino"></div>
+      <div class="fi"><label>Duration</label>
+        <select id="f-duration">
+          <option value="monthly">Monthly</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </div>
       <div class="fi"><label>Lease status</label>
         <select id="f-lease">
           <option>Signed</option>
@@ -269,7 +275,7 @@ tbody td{padding:8px 10px;color:var(--txt);vertical-align:middle}
         </select>
       </div>
       <div class="fi full"><label>Notes</label>
-        <textarea id="f-notes" placeholder="e.g. ONGOING - taking over for Yoshi"></textarea>
+        <textarea id="f-notes" placeholder="Order #*****"></textarea>
       </div>
     </div>
     <button class="add-btn" id="add-btn" onclick="saveReservation()">+ Add reservation</button>
@@ -367,6 +373,7 @@ function editReservation(id) {
   document.getElementById('f-start').value   = r.start   || '';
   document.getElementById('f-end').value     = r.end     || '';
   document.getElementById('f-contact').value = r.contact || '';
+  document.getElementById('f-duration').value = r.duration || 'monthly';
   document.getElementById('f-lease').value   = r.lease   || 'Signed';
   document.getElementById('f-notes').value   = r.notes   || '';
 
@@ -385,6 +392,7 @@ function cancelEdit() {
   document.getElementById('cancel-btn').classList.add('view-hidden');
   ['f-company','f-spots','f-end','f-contact','f-notes']
     .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-duration').value = 'monthly';
   document.getElementById('f-lease').value = 'Signed';
   document.getElementById('f-start').value = todayStr();
   document.getElementById('form-msg').textContent = '';
@@ -410,6 +418,7 @@ async function saveReservation() {
     company, spots, start,
     end: document.getElementById('f-end').value || null,
     contact: document.getElementById('f-contact').value.trim(),
+    duration: document.getElementById('f-duration').value,
     lease: document.getElementById('f-lease').value,
     notes: document.getElementById('f-notes').value.trim()
   };
@@ -556,7 +565,7 @@ function renderTable() {
 
   const tbody = document.getElementById('res-tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No reservations found.</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="10">No reservations found.</td></tr>';
     return;
   }
 
@@ -568,6 +577,7 @@ function renderTable() {
       <td>${fmt(r.start)}</td>
       <td>${fmt(r.end)}</td>
       <td style="color:var(--txt2)">${r.contact || '—'}</td>
+      <td>${r.duration || '—'}</td>
       <td>${r.lease || '—'}</td>
       <td><span class="badge ${bmap[s]}">${s}</span></td>
       <td style="color:var(--txt2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"

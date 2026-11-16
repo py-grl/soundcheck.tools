@@ -2,7 +2,7 @@ const TOOLS = [
   { id: 'noke',       name: 'Noke',           icon: '🔐', url: 'https://smartentry.noke.com/v202511/#/app/facilities/facility/3267', accessIndex: 0 },
   { id: 'dock',       name: 'Dock Scheduler', icon: '📦', url: 'https://soundcheck.tools/dockscheduler/', accessIndex: 1 },
   { id: 'checkout',   name: 'Checkout',        icon: '✅', url: 'https://www.soundcheckout.com:8050/StudioCalendar2.aspx', accessIndex: 2 },
-  { id: 'portalsT',  name: 'Package Tracking Portal',  icon: '🫆', url: 'https://www.trackinthecloud.com/mysoundchecknashville/Signin.aspx?ReturnUrl=/mysoundchecknashville/default.aspx', accessIndex: 3, row: 'portals-tracking' },
+  { id: 'portalsT',  name: 'Package Tracking Portal',  icon: '🫆', url: 'https://www.trackinthecloud.com/mysoundchecknashville/search', accessIndex: 3, row: 'portals-tracking' },
   { id: 'portalsN',  name: 'Tracking Number Search',  icon: '🔎', url: 'https://www.trackinthecloud.com/soundchecknashville/', accessIndex: 3, row: 'portals-tracking' },
   { id: 'portalsM',  name: 'Maintenance Portal',  icon: '⛑️', url: 'https://app.getmaintainx.com/request-portal/5c6458b3-da32-4b29-810b-425c49d7be0b', accessIndex: 3 },
   { id: 'parking',    name: 'Parking',         icon: '🅿', url: 'https://soundcheck.tools/parking', accessIndex: 4 },

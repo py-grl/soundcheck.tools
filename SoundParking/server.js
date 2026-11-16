@@ -132,6 +132,13 @@ db.exec(`
   )
 `);
 
+// CREATE TABLE IF NOT EXISTS won't add new columns to a table that already exists,
+// so add duration (weekly/monthly) here. Existing reservations default to monthly.
+const cols = db.prepare('PRAGMA table_info(reservations)').all().map(c => c.name);
+if (!cols.includes('duration')) {
+  db.exec("ALTER TABLE reservations ADD COLUMN duration TEXT DEFAULT 'monthly'");
+}
+
 console.log('Database ready.');
 
 // ── Routes (API endpoints) ────────────────────
@@ -152,7 +159,7 @@ app.get('/api/reservations', (req, res) => {
 // Saves a new reservation sent from the app.
 // req.body contains the data the browser sent.
 app.post('/api/reservations', (req, res) => {
-  const { company, spots, start, end, contact, lease, notes } = req.body;
+  const { company, spots, start, end, contact, duration, lease, notes } = req.body;
 
   // Basic validation — don't save garbage data
   if (!company || !spots || !start) {
@@ -160,14 +167,14 @@ app.post('/api/reservations', (req, res) => {
   }
 
   const stmt = db.prepare(`
-    INSERT INTO reservations (company, spots, start, end, contact, lease, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO reservations (company, spots, start, end, contact, duration, lease, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   // The ? marks are placeholders — this prevents SQL injection attacks.
   // SQL injection is when someone types malicious code into a form field.
   // Using placeholders means the database treats the input as plain text, never as code.
-  const result = stmt.run(company, spots, start, end || null, contact, lease, notes);
+  const result = stmt.run(company, spots, start, end || null, contact, duration || 'monthly', lease, notes);
 
   // Send back the newly created reservation (with its new id)
   const newRow = db.prepare('SELECT * FROM reservations WHERE id = ?').get(result.lastInsertRowid);
@@ -180,16 +187,16 @@ app.post('/api/reservations', (req, res) => {
 // Updates an existing reservation by its ID.
 app.put('/api/reservations/:id', (req, res) => {
   const { id } = req.params;
-  const { company, spots, start, end, contact, lease, notes } = req.body;
+  const { company, spots, start, end, contact, duration, lease, notes } = req.body;
 
   if (!company || !spots || !start) {
     return res.status(400).json({ error: 'Company, spots, and start date are required.' });
   }
 
   db.prepare(`
-    UPDATE reservations SET company=?, spots=?, start=?, end=?, contact=?, lease=?, notes=?
+    UPDATE reservations SET company=?, spots=?, start=?, end=?, contact=?, duration=?, lease=?, notes=?
     WHERE id=?
-  `).run(company, spots, start, end || null, contact, lease, notes, id);
+  `).run(company, spots, start, end || null, contact, duration || 'monthly', lease, notes, id);
 
   const updated = db.prepare('SELECT * FROM reservations WHERE id = ?').get(id);
   res.json(updated);
