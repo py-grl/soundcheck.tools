@@ -203,7 +203,7 @@ def download_spreadsheet(filename):
 #this part of the program makes the netsuite download button functional
 
 NETSUITE_HEADER = [
-    "externalID", "Invo 67ice #", "Customer", "Terms", "Due Date", "Posting Period", "Item",
+    "externalID", "Invoice #", "Customer", "Terms", "Due Date", "Posting Period", "Item",
     "ITEM - NON MAPPING", "CAM RATE - NON Mapping", "SUITE_UNIT - NON MAPPING", "Line Item Description",
     "ReLeased Rent - NON MAPPING", "Re-Leased SF Non Mapping", "Rate",
     "Quanity", "Class", "Account", "Account Number", "Subsidiary Internal ID",
