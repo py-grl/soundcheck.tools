@@ -13,6 +13,10 @@
         <a href="{{ url_for('home') }}" class="btn btn-secondary">← Home</a>
     </div>
 
+    {% for message in get_flashed_messages() %}
+        <div class="flash">{{ message }}</div>
+    {% endfor %}
+
     <div class="calendar-nav">
         <a href="{{ url_for('monthly', year=prev_year, month=prev_month) }}" class="btn btn-secondary">← Prev</a>
         <h2>{{ month_name }} {{ year }}</h2>
@@ -65,7 +69,23 @@
     const URLS = {
         edit: "{{ url_for('edit_reservation', id=0) }}".replace(/\/0$/, '/'),
         add:  "{{ url_for('add_reservation') }}",
+        del:  "{{ url_for('delete_reservation', id=0) }}".replace(/\/0$/, '/'),
+        here: "{{ url_for('monthly', year=year, month=month) }}",
     };
+
+    // Edit / Delete buttons for a reservation in the popup. `next` sends the
+    // user back to this same view after saving or deleting.
+    function resActions(id) {
+        const next = encodeURIComponent(URLS.here);
+        return `<div class="action-links" style="margin-top:8px;">
+            <a href="${URLS.edit}${id}?next=${next}" class="btn btn-secondary">Edit</a>
+            <form method="POST" action="${URLS.del}${id}" style="display:inline"
+                  onsubmit="return confirm('Delete this reservation? This cannot be undone.')">
+                <input type="hidden" name="next" value="${URLS.here}">
+                <button type="submit" class="btn btn-danger">Delete</button>
+            </form>
+        </div>`;
+    }
 
     const resByDay = {
 
@@ -127,13 +147,13 @@
                     Dock ${r.dock} (${r.type})<br>
                     ${dateRange} &nbsp;|&nbsp; ${timeStr}
                     ${r.notes ? '<br><em style="color:#aaa">' + esc(r.notes) + '</em>' : ''}
-                      <a href="${URLS.edit}${r.id}" class="btn btn-secondary" style="margin-top:8px; display:inline-block;">Edit</a>
+                    ${resActions(r.id)}
 
                 </div>`;
             });
         }
 
-        html += `<a href="${URLS.add}?date=${dateStr}" class="btn btn-primary" style="margin-top:12px; display:inline-block;">+ Add Reservation</a>`;
+        html += `<a href="${URLS.add}?date=${dateStr}&next=${encodeURIComponent(URLS.here)}" class="btn btn-primary" style="margin-top:12px; display:inline-block;">+ Add Reservation</a>`;
         document.getElementById('modal-body').innerHTML = html;
         document.getElementById('modal').classList.add('active');
     }

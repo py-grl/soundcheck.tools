@@ -273,6 +273,43 @@ def _parse_dates_times(form, dock_type):
     return start_date, end_date, start_time, end_time, False
 
 
+def _safe_next(default_endpoint='index'):
+    """Where to go after a save/delete. Only same-site paths are accepted so
+    the ?next= value can't be used to bounce users to another website."""
+    target = request.values.get('next', '')
+    if target.startswith('/') and not target.startswith('//') and '\\' not in target:
+        return target
+    return url_for(default_endpoint)
+
+
+def _render_res_form(r=None, form=None, prefill_date=''):
+    """Render the add/edit form. `form` is the submitted data when a save
+    failed, so the page refills with what the user typed instead of wiping it."""
+    all_res_json = [
+        {
+            'name':  res.display_name,
+            'start': str(res.start_date),
+            'end':   str(res.end_date) if res.end_date.year != 9999 else None,
+            'color': CALENDAR_COLORS[res.id % len(CALENDAR_COLORS)],
+        }
+        for res in Reservation.query.all()
+    ]
+    ctx = dict(dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS,
+               prefill_date=prefill_date, all_res_json=all_res_json,
+               form=form, next_url=request.values.get('next', ''),
+               back_url=_safe_next())
+    if r is not None:
+        ctx['r'] = r
+    return render_template('add.html', **ctx)
+
+
+def _form_failed(message, r=None):
+    """Show the error and re-show the form with the user's input kept."""
+    db.session.rollback()   # drop any half-applied edits to the reservation
+    flash(message)
+    return _render_res_form(r=r, form=request.form)
+
+
 @app.route('/')
 def home():
     return render_template('home.html')
@@ -329,7 +366,7 @@ def delete_reservation(id):
     db.session.delete(reservation)
     db.session.commit()
     flash('Reservation deleted.')
-    return redirect(url_for('index'))
+    return redirect(_safe_next())
 
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
@@ -343,8 +380,7 @@ def edit_reservation(id):
 
         dock_numbers = request.form.getlist('dock_number')
         if not dock_numbers:
-            flash('Please select at least one dock.')
-            return redirect(url_for('edit_reservation', id=id))
+            return _form_failed('Please select at least one dock.', reservation)
         reservation.dock_number = ','.join(dock_numbers)
 
         dock_type = request.form['dock_type']
@@ -355,8 +391,7 @@ def edit_reservation(id):
              reservation.start_time, reservation.end_time,
              reservation.all_day) = _parse_dates_times(request.form, dock_type)
         except FormError as e:
-            flash(str(e))
-            return redirect(url_for('edit_reservation', id=id))
+            return _form_failed(str(e), reservation)
 
         reservation.notes = request.form.get('notes', '')
 
@@ -369,28 +404,16 @@ def edit_reservation(id):
             all_day=reservation.all_day
         )
         if conflict:
-            flash('That dock is already booked then — a 30-minute gap is required before and after each booking.')
-            return redirect(url_for('edit_reservation', id=id))
+            return _form_failed('That dock is already booked then — a 30-minute gap is required before and after each booking.', reservation)
 
         log_action('edit', user=current_user_name(session), source='DockScheduler',
                    target_type='reservation', target_id=reservation.id,
                    detail=f'Edited reservation for {reservation.display_name} on dock {reservation.dock_number}')
         db.session.commit()
         flash('Reservation updated!')
-        return redirect(url_for('index'))
+        return redirect(_safe_next())
 
-    all_res_json = [
-        {
-            'name':  r.display_name,
-            'start': str(r.start_date),
-            'end':   str(r.end_date) if r.end_date.year != 9999 else None,
-            'color': CALENDAR_COLORS[r.id % len(CALENDAR_COLORS)],
-        }
-        for r in Reservation.query.all()
-    ]
-    return render_template('add.html', r=reservation,
-                           dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS,
-                           all_res_json=all_res_json)
+    return _render_res_form(r=reservation)
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_reservation():
@@ -401,8 +424,7 @@ def add_reservation():
 
         dock_numbers = request.form.getlist('dock_number')
         if not dock_numbers:
-            flash('Please select at least one dock.')
-            return redirect(url_for('add_reservation'))
+            return _form_failed('Please select at least one dock.')
         dock_number = ','.join(dock_numbers)
 
         dock_type = request.form['dock_type']
@@ -411,8 +433,7 @@ def add_reservation():
             start_date, end_date, start_time, end_time, all_day = \
                 _parse_dates_times(request.form, dock_type)
         except FormError as e:
-            flash(str(e))
-            return redirect(url_for('add_reservation'))
+            return _form_failed(str(e))
 
         notes = request.form.get('notes', '')
 
@@ -423,8 +444,7 @@ def add_reservation():
             all_day=all_day
         )
         if conflict:
-            flash('That dock is already booked then — a 30-minute gap is required before and after each booking.')
-            return redirect(url_for('add_reservation'))
+            return _form_failed('That dock is already booked then — a 30-minute gap is required before and after each booking.')
 
         new_res = Reservation(
             name=name, company=company, email=email,
@@ -438,20 +458,9 @@ def add_reservation():
                    target_type='reservation', target_id=new_res.id,
                    detail=f'Created reservation for {new_res.display_name} on dock {new_res.dock_number}')
         flash('Reservation added!')
-        return redirect(url_for('index'))
+        return redirect(_safe_next())
 
-    prefill_date = request.args.get('date', '')
-    all_res_json = [
-        {
-            'name':  r.display_name,
-            'start': str(r.start_date),
-            'end':   str(r.end_date) if r.end_date.year != 9999 else None,
-            'color': CALENDAR_COLORS[r.id % len(CALENDAR_COLORS)],
-        }
-        for r in Reservation.query.all()
-    ]
-    return render_template('add.html', dock_types=DOCK_TYPES, dock_options=DOCK_OPTIONS,
-                           prefill_date=prefill_date, all_res_json=all_res_json)
+    return _render_res_form(prefill_date=request.args.get('date', ''))
 
 
 @app.route('/daily')
